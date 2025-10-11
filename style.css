@@ -36,7 +36,7 @@ body {
 /* Titlul principal al cărții */
 .big-text {
     font-family: 'Times New Roman', serif;
-    font-size: 10rem; /* Mărit */
+    font-size: 15rem; /* Mărit */
     font-weight: 900; /* Negru, foarte gros */
     color: black;
     margin: 0;
@@ -118,4 +118,5 @@ body {
 .dropdown-content p:hover {
     background-color: #d3c7a9; /* Efect hover subtil */
 }
+
 
