@@ -1,0 +1,120 @@
+body {
+    /* Fundal ce imită pergamentul vechi */
+    background-image: url('URL_DE_TU_IMAGEN_DE_PERGAMINO'); /* Înlocuiește cu o URL/cale către o textură */
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    font-family: serif; /* Font vechi */
+    color: #4B382F; /* Ton maro închis pentru text (precum cerneala) */
+    min-height: 100vh;
+    margin: 0;
+}
+
+#reference-display {
+    text-align: center;
+    padding: 40px;
+    background-color: rgba(240, 220, 180, 0.85); /* O culoare de rezervă în cazul în care imaginea de fundal nu se încarcă */
+    /* Eliminăm marginile și umbrele pentru un aspect pe tot ecranul */
+    width: 100%;
+    height: 100vh; /* Ocupă toată înălțimea ecranului */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-sizing: border-box; /* Asigură că padding-ul nu mărește dimensiunea totală */
+}
+
+/* --- STILUL SELECTOARELOR --- */
+
+.selector-wrapper {
+    position: relative;
+    cursor: pointer;
+    margin-bottom: 20px;
+    display: inline-block; /* Permite plasarea elementelor în linie */
+}
+
+/* Titlul principal al cărții */
+.big-text {
+    font-family: 'Times New Roman', serif;
+    font-size: 4rem; /* Mare */
+    font-weight: 900; /* Negru, foarte gros */
+    color: black;
+    margin: 0;
+    line-height: 1;
+    border-bottom: 2px solid transparent; /* Pentru efectul hover */
+    display: inline-block; /* Asigură că marginea se ajustează la text */
+    transition: border-bottom 0.2s ease;
+}
+
+/* Capitol și verset */
+.small-text {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin: 5px 0 0 0;
+    border-bottom: 2px solid transparent;
+    transition: border-bottom 0.2s ease;
+}
+
+/* Efect la trecerea mouse-ului */
+.selector-wrapper:hover .big-text,
+.selector-wrapper:hover .small-text {
+    border-bottom: 2px solid black;
+}
+
+.main-label {
+    font-size: 0.9rem;
+    font-style: italic;
+    color: #6d6d6d;
+    display: block;
+}
+
+/* Container pentru Capitol și Verset */
+#chapter-verse-container {
+    display: flex;
+    justify-content: center;
+    gap: 30px; /* Separare între capitol și verset */
+    margin-top: 20px;
+}
+
+/* --- STILUL MENIURILOR DERULANTE --- */
+
+.dropdown-content {
+    display: none; /* Ascuns în mod implicit */
+    position: absolute;
+    top: 100%; /* Apare chiar sub text */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #fffaf0; /* Culoare crem deschis */
+    min-width: 150px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 10;
+    border: 1px solid #d3c7a9;
+    max-height: 300px;
+    overflow-y: auto; /* Permite derularea dacă sunt multe elemente */
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none; /* Nu se poate face clic dacă este ascuns */
+}
+
+/* Afișează meniul derulant */
+.dropdown-content.show {
+    display: block;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+
+.dropdown-content p {
+    color: black;
+    padding: 8px 16px;
+    text-decoration: none;
+    display: block;
+    cursor: pointer;
+    margin: 0;
+    font-size: 1.2rem;
+    transition: background-color 0.1s;
+}
+
+.dropdown-content p:hover {
+    background-color: #d3c7a9; /* Efect hover subtil */
+}
