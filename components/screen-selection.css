@@ -1,0 +1,18 @@
+/* Component CSS: screen-selection.css */
+
+.selector-wrapper { position: relative; cursor: pointer; margin-bottom: 20px; display: inline-block; }
+.big-text { font-family: 'Times New Roman', serif; font-size: 10rem; font-weight: 900; color: black; margin: 0; line-height: 1; border-bottom: 2px solid transparent; display: inline-block; transition: border-bottom 0.2s ease; }
+.small-text { font-size: 6rem; font-weight: bold; margin: 5px 0 0 0; border-bottom: 2px solid transparent; transition: border-bottom 0.2s ease; }
+.selector-wrapper:hover .big-text, .selector-wrapper:hover .small-text { border-bottom: 2px solid black; }
+.selector-wrapper[data-disabled="true"] { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+.selector-wrapper[data-disabled="true"]:hover .big-text, .selector-wrapper[data-disabled="true"]:hover .small-text { border-bottom: 2px solid transparent; }
+
+.main-label { font-size: 3rem; font-style: italic; color: #6d6d6d; display: block; }
+
+#chapter-verse-container { display: flex; justify-content: center; gap: 30px; margin-top: 20px; }
+
+.selectors-small { display: flex; flex-direction: column; gap: 10px; }
+.selector-small { display: flex; gap: 8px; font-size: 1.2rem; }
+.label-small { font-weight: bold; color: #4B382F; }
+.display-small { color: black; margin: 0; line-height: 1; border-bottom: 2px solid transparent; display: inline-block; transition: border-bottom 0.2s ease; }
+.small-display { background: rgba(255,255,255,0.85); color: #4b382f; padding: 6px 10px; border-radius: 6px; border: 1px solid rgba(180,150,100,0.35); min-width: 120px; text-align: left; font-weight: 600; }

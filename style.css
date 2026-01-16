@@ -11,110 +11,636 @@ body {
     margin: 0;
 }
 
+#container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    position: relative;
+}
+
+.screen {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.screen.active {
+    display: flex;
+}
+
+/* ===== PANTALLA 1: SELECCIÓN ===== */
+#screen-selection {
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+    background-color: rgba(240, 220, 180, 0.85);
+    box-sizing: border-box;
+}
+
 #reference-display {
     text-align: center;
-    padding: 40px;
-    background-color: rgba(240, 220, 180, 0.85); /* O culoare de rezervă în cazul în care imaginea de fundal nu se încarcă */
-    /* Eliminăm marginile și umbrele pentru un aspect pe tot ecranul */
     width: 100%;
-    height: 100vh; /* Ocupă toată înălțimea ecranului */
+}
+
+/* ===== PANTALLA 2: LECTURA ===== */
+#screen-reading {
+    background-color: rgba(240, 220, 180, 0.9);
+    box-sizing: border-box;
+}
+
+/* Ensure the screen container doesn't add extra padding or margin that
+   would reduce the available width for the reading sheet. The visual
+   padding stays on the sheet container (.verse-text-container-reading). */
+#screen-reading {
+    padding: 0;
+    margin: 0;
+}
+
+.reading-layout {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: 1fr;
+    gap: 20px;
+    padding: 30px;
+    height: 100%;
+    box-sizing: border-box;
+    align-items: center;
+}
+
+/* New: reading-grid used by the updated screen-reading template (two columns: left + main) */
+.reading-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 24px;
+    /* remove outer padding so the grid's full width is available to children;
+       visual padding is applied on the sheet container itself */
+    padding: 0;
+    height: 100%;
+    box-sizing: border-box;
+    align-items: start;
+}
+
+/* Prevent horizontal expansion caused by unbreakable content inside the grid */
+.reading-grid {
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+
+/* Ensure the grid and its main slot cannot shrink below the available space.
+   This prevents the second column (main) from collapsing to fit short content. */
+.reading-grid {
+    width: 100%;
+}
+
+.reading-grid > .reading-main-slot,
+#reading-main-slot {
+    min-width: 0; /* allow the 1fr column to shrink properly without causing content-based reflow */
+    width: 100%;
+    align-self: stretch;
+}
+
+/* Arriba-izquierda: vacío (para futuro) */
+#screen-reading > .reading-layout > :first-child:not(.selectors-small):not(.verse-text-container-reading):not(.nav-controls-reading) {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+/* Centro: texto del versículo (ocupa todo menos selectores y nav) */
+.verse-text-container-reading {
+    grid-column: 2;
+    grid-row: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    box-sizing: border-box; /* Asigură că padding-ul nu mărește dimensiunea totală */
-}
-
-/* --- STILUL SELECTOARELOR --- */
-
-.selector-wrapper {
-    position: relative;
-    cursor: pointer;
-    margin-bottom: 20px;
-    display: inline-block; /* Permite plasarea elementelor în linie */
-}
-
-/* Titlul principal al cărții */
-.big-text {
-    font-family: 'Times New Roman', serif;
-    font-size: 10rem; /* Mărit */
-    font-weight: 900; /* Negru, foarte gros */
-    color: black;
+    /* visual sheet: background, border, padding and shadow live on the container */
+    justify-content: flex-start; /* top-align short verses */
+    align-items: stretch; /* ensure inner element fills full width */
+    padding: 36px 48px; /* visual padding for the sheet */
+    max-width: none;
+    width: 100%;
     margin: 0;
-    line-height: 1;
-    border-bottom: 2px solid transparent; /* Pentru efectul hover */
-    display: inline-block; /* Asigură că marginea se ajustează la text */
-    transition: border-bottom 0.2s ease;
+    box-sizing: border-box;
+    border-radius: 10px;
+    border: 1px solid rgba(200,160,110,0.45);
+    background-color: rgba(250, 232, 200, 0.95);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 6px 18px rgba(40,30,20,0.12);
+    background-image: linear-gradient(rgba(255,255,255,0.02), rgba(0,0,0,0.01));
+    overflow: hidden; /* inner element will handle scrolling */
 }
 
-/* Capitol și verset */
-.small-text {
-    font-size: 6rem; /* Mărit */
-    font-weight: bold;
-    margin: 5px 0 0 0;
-    border-bottom: 2px solid transparent;
-    transition: border-bottom 0.2s ease;
-}
-
-/* Efect la trecerea mouse-ului */
-.selector-wrapper:hover .big-text,
-.selector-wrapper:hover .small-text {
-    border-bottom: 2px solid black;
-}
-
-.main-label {
-    font-size: 3rem; /* Mărit */
-    font-style: italic;
-    color: #6d6d6d;
-    display: block;
-}
-
-/* Container pentru Capitol și Verset */
-#chapter-verse-container {
+/* Izquierda: selectores pequeños */
+.selectors-small {
+    grid-column: 1;
+    grid-row: 1;
     display: flex;
-    justify-content: center;
-    gap: 30px; /* Separare între capitol și verset */
-    margin-top: 20px;
+    flex-direction: column;
+    gap: 10px;
+    align-self: center;
 }
 
-/* --- STILUL MENIURILOR DERULANTE --- */
-
-.dropdown-content {
-    display: none; /* Ascuns în mod implicit */
-    position: absolute;
-    top: 100%; /* Apare chiar sub text */
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #fffaf0; /* Culoare crem deschis */
-    min-width: 150px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 10;
-    border: 1px solid #d3c7a9;
-    max-height: 300px;
-    overflow-y: auto; /* Permite derularea dacă sunt multe elemente */
-    opacity: 0;
-    transition: opacity 0.3s ease, transform 0.3s ease;
-    pointer-events: none; /* Nu se poate face clic dacă este ascuns */
+/* Reading left column (small selectors) */
+#reading-left, .reading-left {
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: flex-start;
 }
 
-/* Afișează meniul derulant */
-.dropdown-content.show {
-    display: block;
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-    pointer-events: auto;
+/* Reading main column: contains the sheet and the nav (nav appended inside sheet) */
+#reading-main, .reading-main {
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    /* take remaining vertical space within the grid column */
+    flex: 1 1 auto;
+    min-height: 0; /* allow children to scroll correctly */
 }
 
-.dropdown-content p {
-    color: black;
-    padding: 8px 16px;
-    text-decoration: none;
-    display: block;
-    cursor: pointer;
+/* Keep the reading sheet as a flex column but make its children stretch to full width
+   instead of centering them. This prevents the verse container from shrinking in width. */
+#reading-sheet, .reading-sheet {
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch; /* ensure children fill available width */
+    justify-content: flex-start;
+    width: 100%;
+    /* take remaining vertical space within the grid column */
+    flex: 1 1 auto;
+    min-height: 0; /* allow children to scroll correctly */
+}
+
+/* Make the reading sheet occupy full width of the main column and fill the grid cell height
+   (use the grid to control overall layout instead of fixed viewport heights). */
+#reading-sheet, .reading-sheet {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+}
+
+.selector-small {
+    display: flex;
+    gap: 8px;
+    font-size: 1.2rem;
+}
+
+.label-small {
+    font-weight: bold;
+    color: #4B382F;
+}
+
+.display-small {
+    color: #2b1f15;
+    padding: 4px 8px;
+    background: rgba(255,255,255,0.6);
+    border-radius: 4px;
+    min-width: 80px;
+    text-align: center;
+}
+
+/* Centro: texto del versículo */
+.verse-text-container-reading {
+    grid-column: 2;
+    grid-row: 1 / 4;
+    display: flex;
+    flex-direction: column;
+    /* keep content aligned to the top so short verses don't appear vertically centered */
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 36px 48px; /* inner visual padding */
+    max-width: none;
+    width: 100%;
     margin: 0;
-    font-size: 1.4rem; /* Mărit */
-    transition: background-color 0.1s;
+    box-sizing: border-box;
+    border-radius: 10px;
+    border: 1px solid rgba(200,160,110,0.45);
+    background-color: rgba(250, 232, 200, 0.95);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 6px 18px rgba(40,30,20,0.12);
+    background-image: linear-gradient(rgba(255,255,255,0.02), rgba(0,0,0,0.01));
+     /* Make the sheet expand to fill available space above the nav, and let inner text scroll.
+         Use a flexible child so the nav (appended inside the sheet) remains visible below. */
+     flex: 1 1 auto;
+     width: 100%;
+     min-width: 0; /* allow proper shrinking inside flex layouts */
+     min-height: 0; /* allow flex child to shrink and enable scrolling */
+     overflow: hidden;
 }
 
-.dropdown-content p:hover {
-    background-color: #d3c7a9; /* Efect hover subtil */
+.verse-text-reading {
+    font-size: 2.2rem;
+    line-height: 1.8;
+    /* Tipografía heredada de la pantalla y color marrón claro */
+    font-family: Georgia, 'Times New Roman', serif;
+    color: #6b4328; /* marrón claro, ligeramente más oscuro para legibilidad */
+    text-align: center;
+    /* The inner text is transparent so only its content animates; container shows the sheet */
+    padding: 0; /* no extra padding: container provides visual padding */
+    background: transparent;
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+    overflow: auto; /* text scrolls inside this inner element */
+    align-self: stretch; /* ensure this inner element expands to container width */
+
+    /* Prevent very long words / lack of spaces from forcing the container wider than the grid */
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+}
+
+.fetch-status-reading {
+    font-size: 1rem;
+    color: #6d4b36; /* tono marrón para el estado */
+    margin-top: 12px;
+    text-align: center;
+}
+
+/* Estilo para ejemplo en la esquina inferior izquierda */
+.combined-ref {
+    margin-top: 8px;
+    font-size: 1.1rem;
+    color: #8B5E3C;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.combined-ref #reading-reference,
+.combined-ref > #reading-reference {
+    font-weight: 700;
+}
+
+/* Small selectors styling in reading screen */
+.selectors-small .small-selector {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+.selectors-small .small-selector .main-label {
+    font-size: 1.1rem;
+    color: #6b4e36;
+    font-style: normal;
+}
+.small-display {
+    background: rgba(255,255,255,0.85);
+    color: #4b382f;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(180,150,100,0.35);
+    min-width: 120px;
+    text-align: left;
+    font-weight: 600;
+}
+
+/* Derecha: navegación */
+.nav-controls-reading {
+    /* Default: when nav is a separate grid column */
+    grid-column: 3;
+    grid-row: 1;
+    display: flex;
+    flex-direction: row; /* Horizontal layout */
+    gap: 12px;
+    justify-content: flex-end; /* Align to right */
+    align-items: center; /* Center vertically within the grid cell */
+}
+
+/* When nav is appended inside the reading sheet, center it below the verse text */
+#reading-sheet .nav-controls-reading,
+.reading-sheet .nav-controls-reading {
+    grid-column: auto;
+    grid-row: auto;
+    justify-content: center;
+    align-self: stretch;
+    margin-top: 0; /* bring buttons closer to the verse area */
+    /* ensure nav doesn't take flexible space; stays below the sheet */
+    flex: 0 0 auto;
+}
+
+.btn-icon {
+    font-size: 2.4rem;
+    padding: 12px 16px;
+    border: 2px solid #b89f7a;
+    background: linear-gradient(#fffaf0, #f0dfb8);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    background: linear-gradient(#f0dfb8, #fffaf0);
+}
+
+/* Estilos para los botones y el texto del versículo */
+#nav-buttons button {
+    font-size: 1.6rem;
+    padding: 8px 14px;
+    margin: 0 6px;
+    border-radius: 6px;
+    border: 1px solid #b89f7a;
+    background: linear-gradient(#fffaf0, #f0dfb8);
+    cursor: pointer;
+}
+
+#nav-buttons button:hover {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+#verse-text {
+    font-size: 2rem;
+    line-height: 1.6;
+    color: #2b1f15;
+    padding: 18px;
+    background-color: rgba(255,255,255,0.6);
+    border-radius: 8px;
+    border: 1px solid rgba(180,150,100,0.4);
+    min-height: 3.4rem;
+}
+
+#fetch-status {
+    text-align: center;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Mobile: < 768px - Adaptar SOLO la pantalla de lectura */
+@media (max-width: 767px) {
+    /* Reading Screen */
+    .reading-layout {
+        grid-template-columns: auto 1fr auto;
+        grid-template-rows: 1fr;
+        gap: 10px;
+        padding: 15px;
+    }
+
+    .verse-text-container-reading {
+        grid-column: 2;
+        grid-row: 1;
+        padding: 15px; /* container provides visual padding on mobile */
+        min-height: 150px;
+        max-height: 300px;
+    }
+
+    #verse-text-reading {
+        font-size: 1.1rem;
+        line-height: 1.4;
+        padding: 0; /* no inner padding; container is the sheet */
+    }
+
+    #fetch-status-reading {
+        font-size: 0.85rem;
+    }
+
+    .selectors-small {
+        grid-column: 1;
+        grid-row: 1;
+        gap: 6px;
+    }
+
+    .small-selector {
+        min-width: auto;
+    }
+
+    .small-display {
+        font-size: 0.8rem;
+        min-width: 70px;
+        padding: 4px 6px;
+    }
+
+    .nav-controls-reading {
+        grid-column: 3;
+        grid-row: 1;
+        gap: 6px;
+        flex-wrap: nowrap;
+    }
+
+    .nav-controls-reading button {
+        font-size: 0.8rem;
+        padding: 6px 8px;
+        width: auto;
+        height: auto;
+    }
+
+    /* Book layout on mobile */
+    .book {
+        width: 100vw;
+        height: 100vh;
+        max-width: none;
+        grid-template-columns: 1fr;
+    }
+
+    .book-left {
+        display: none;
+    }
+
+    .book-right {
+        width: 100%;
+        padding: 15px;
+    }
+}
+
+/* Tablet: 768px - 1024px */
+@media (min-width: 100%) {
+    /* Reading Screen */
+    .reading-layout {
+        grid-template-columns: auto 1fr auto;
+        grid-template-rows: 1fr;
+        gap: 15px;
+        padding: 20px;
+    }
+
+    .verse-text-container-reading {
+        grid-column: 2;
+        grid-row: 1;
+        padding: 25px; /* container provides visual padding on tablet */
+        min-height: 200px;
+        max-height: 350px;
+    }
+
+    #verse-text-reading {
+        font-size: 1.3rem;
+        line-height: 1.6;
+        padding: 0; /* no inner padding; container is the sheet */
+    }
+
+    .selectors-small {
+        grid-column: 1;
+        grid-row: 1;
+        gap: 10px;
+    }
+
+    .small-selector {
+        min-width: 100px;
+    }
+
+    .nav-controls-reading {
+        grid-column: 3;
+        grid-row: 1;
+        gap: 10px;
+    }
+
+    .nav-controls-reading button {
+        font-size: 0.95rem;
+        padding: 8px 12px;
+    }
+
+    /* Book layout on tablet */
+    .book {
+        width: 90vw;
+        height: 90vh;
+        grid-template-columns: 0.8fr 1.2fr;
+    }
+
+    .book-left {
+        display: flex;
+    }
+
+    .book-right {
+        padding: 25px;
+    }
+}
+
+/* Desktop: > 1024px - Diseño completo */
+@media (min-width: 100%) {
+    /* Reading Screen */
+    .reading-layout {
+        grid-template-columns: auto 1fr auto;
+        grid-template-rows: 1fr;
+        gap: 20px;
+        padding: 30px;
+    }
+
+    .verse-text-container-reading {
+        grid-column: 2;
+        grid-row: 1;
+        padding: 36px 48px; /* container provides visual padding on desktop */
+    }
+
+    #verse-text-reading {
+        font-size: 1.8rem;
+        line-height: 1.8;
+        padding: 0;
+    }
+
+    .selectors-small {
+        grid-column: 1;
+        grid-row: 1;
+        gap: 15px;
+    }
+
+    .small-selector {
+        min-width: 120px;
+    }
+
+    .nav-controls-reading {
+        grid-column: 3;
+        grid-row: 1;
+        gap: 12px;
+    }
+
+    .nav-controls-reading button {
+        font-size: 1rem;
+        padding: 10px 14px;
+    }
+
+    /* Book layout on desktop */
+    .book {
+        width: 85vw;
+        height: 85vh;
+        max-width: 1000px;
+        grid-template-columns: 1fr 1.5fr;
+    }
+
+    .book-left {
+        display: flex;
+    }
+
+    .book-right {
+        padding: 30px;
+    }
+}
+
+/* Explicit, high-specificity rules for the reading sheet and children.
+   These selectors are intentionally specific and placed at the end of
+   the stylesheet to override earlier layout/media-query rules without
+   relying on `!important`. They ensure the sheet uses the maximum width
+   allowed by its parent and that only the verse text scrolls. */
+
+/* CSS variable for future tuning */
+:root {
+    --sheet-max-width: 100%;
+}
+
+/* Target the reading sheet when it is injected into the reading-grid main slot */
+.reading-grid .reading-main-slot > #reading-sheet,
+.reading-grid .reading-main-slot > .reading-sheet {
+    width: 100%;
+    max-width: var(--sheet-max-width);
+    margin: 0 auto;
+    box-sizing: border-box;
+    align-self: stretch; /* make the sheet stretch to fill the grid cell */
+}
+
+/* Make the verse container fill the sheet width and behave as a non-growing flex child */
+.reading-grid .reading-main-slot > #reading-sheet .verse-text-container-reading,
+.reading-grid .reading-main-slot > .reading-sheet .verse-text-container-reading {
+    width: 100%;
+    max-width: 100%;
+    align-items: stretch; /* enforce full-width behavior */
+    flex: 1 1 auto; /* allow the verse area to grow and leave room for nav */
+    min-width: 0;   /* allow proper shrinking in constrained flex contexts */
+    min-height: 0;  /* allow inner scrolling */
+    padding-bottom: 12px; /* reduce bottom padding so nav sits closer */
+    overflow: hidden; /* inner text will scroll */
+}
+
+/* The inner verse element fills the container and scrolls vertically */
+.reading-grid .reading-main-slot > #reading-sheet #verse-text-reading,
+.reading-grid .reading-main-slot > .reading-sheet #verse-text-reading {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    box-sizing: border-box;
+    overflow: auto; /* scroll inside the verse area */
+}
+
+/* Site header (church name) - top-left, prominent */
+.site-header {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    z-index: 1200;
+    pointer-events: none; /* allow clicks through header unless specifically on the title */
+}
+.site-title {
+    margin: 0;
+    padding: 6px 12px;
+    /* use a curvy, decorative script for a logo-like header, fall back to Playfair/serif */
+    font-family: 'Great Vibes', 'Playfair Display', Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+    color: #5b3720; /* rich brown */
+    font-size: clamp(1.6rem, 4.2vw + 0.4rem, 3.2rem);
+    line-height: 1;
+    letter-spacing: 0.4px;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.22);
+    background: rgba(255, 248, 238, 0.62); /* subtle warm background for legibility */
+    border-radius: 6px;
+    pointer-events: auto; /* allow interactions if needed */
 }

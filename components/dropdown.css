@@ -1,0 +1,39 @@
+/* Component CSS: dropdown.css */
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #fffaf0;
+  min-width: 150px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 10;
+  border: 1px solid #d3c7a9;
+  max-height: 300px;
+  overflow-y: auto;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+
+.dropdown-content.show {
+  display: block;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.dropdown-content p {
+  color: black;
+  padding: 8px 16px;
+  text-decoration: none;
+  display: block;
+  cursor: pointer;
+  margin: 0;
+  font-size: 1.4rem;
+  transition: background-color 0.1s;
+}
+
+.dropdown-content p:hover { background-color: #d3c7a9; }

@@ -5,35 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Referință Biblică</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Component styles (split per-component) -->
+    <link rel="stylesheet" href="components/screen-reading.css">
+    <link rel="stylesheet" href="components/reading-sheet.css">
+        <!-- Optional nice serif display font; falls back to Georgia/serif if blocked -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+        <!-- Curvy script font for header -->
+        <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="components/dropdown.css">
+    <link rel="stylesheet" href="components/screen-selection.css">
 </head>
 <body>
 
+    <header class="site-header" role="banner">
+        <h1 class="site-title">Biserica Betel Bilbao</h1>
+    </header>
+
     <div id="container">
-        <div id="reference-display">
-            <div id="book-selector" class="selector-wrapper">
-                <span class="main-label">Carte</span>
-                <h1 id="selected-book" class="big-text">Geneza</h1>
-                <div id="book-dropdown" class="dropdown-content"></div>
-            </div>
-
-            <div id="chapter-verse-container">
-                <div id="chapter-selector" class="selector-wrapper inline-selector">
-                    <span class="main-label">Capitol</span>
-                    <h2 id="selected-chapter" class="small-text">1</h2>
-                    <div id="chapter-dropdown" class="dropdown-content"></div>
-                </div>
-
-                <div id="verse-selector" class="selector-wrapper inline-selector">
-                    <span class="main-label">Verset</span>
-                    <h2 id="selected-verse" class="small-text">1</h2>
-                    <div id="verse-dropdown" class="dropdown-content"></div>
-                </div>
-
-            </div>
-
-        </div>
+        <!-- PANTALLAS: cargadas desde componentes en /components -->
+        <!-- Los contenedores quedan como placeholders; los templates se inyectan en runtime -->
+        <div id="screen-selection" class="screen active"></div>
+        <div id="screen-reading" class="screen"></div>
     </div>
 
     <script src="script.js"></script>
+    <!-- screen-specific scripts (depend on globals defined in script.js) -->
+    <script src="components/screen-selection.js"></script>
+    <script src="components/screen-reading.js"></script>
 </body>
 </html>

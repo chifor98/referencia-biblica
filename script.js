@@ -69,112 +69,1058 @@ const bibleStructure = {
     'Apocalipsa': { 1: 20, 2: 29, 3: 22, 4: 11, 5: 14, 6: 17, 7: 17, 8: 13, 9: 21, 10: 11, 11: 19, 12: 18, 13: 18, 14: 20, 15: 8, 16: 21, 17: 18, 18: 24, 19: 21, 20: 15, 21: 27, 22: 21 }
 };
 
-// --- Funciones para manejar la interfaz (UI) ---
+// Selection and small selector UI logic moved to separate files:
+// - components/screen-selection.js
+// - components/screen-reading.js
+// They are loaded via <script> tags in index.html and depend on the shared globals
+// (bibleStructure, fetchAndShowVerse, setReference, goToReadingScreen, etc.)
 
-// 1. Alternar la visibilidad del desplegable
-document.querySelectorAll('.selector-wrapper').forEach(wrapper => {
-    wrapper.addEventListener('click', function(event) {
-        // Închide toate celelalte meniuri derulante
-        document.querySelectorAll('.dropdown-content.show').forEach(dd => {
-            if (dd !== this.querySelector('.dropdown-content')) {
-                dd.classList.remove('show');
-            }
-        });
-        
-        // Comută meniul derulant actual
-        const dropdown = this.querySelector('.dropdown-content');
-        dropdown.classList.toggle('show');
-        event.stopPropagation(); // Previne propagarea clicului către body
-    });
-});
+// --- LÓGICA DE VISTAS (PANTALLAS) ---
 
-// Închide meniul derulant dacă se face clic în afara lui
-document.body.addEventListener('click', () => {
-    document.querySelectorAll('.dropdown-content').forEach(dd => {
-        dd.classList.remove('show');
-    });
-});
-
-// 2. Lógica de selección y actualización del texto
-document.querySelectorAll('.dropdown-content').forEach(dropdown => {
-    dropdown.addEventListener('click', function(event) {
-        if (event.target.tagName === 'P') {
-            const selectedValue = event.target.getAttribute('data-value');
-            const selectedText = event.target.textContent;
-            
-            // Găsește elementul de text de actualizat
-            const wrapper = this.closest('.selector-wrapper');
-            let targetElementId = '';
-            
-            if (wrapper.id === 'book-selector') {
-                targetElementId = 'selected-book';
-                handleBookSelection(selectedText); // Logica de dependență a Cărții
-            } else if (wrapper.id === 'chapter-selector') { // `selectedValue` este numărul capitolului
-                targetElementId = 'selected-chapter';
-                handleChapterSelection(selectedValue); // Logica de dependență a Capitolului (actualizează versetele)
-            } else if (wrapper.id === 'verse-selector') {
-                targetElementId = 'selected-verse';
-            }
-            
-            document.getElementById(targetElementId).textContent = selectedText;
-            this.classList.remove('show'); // Închide meniul derulant după selectare
+function goToReadingScreen(book, chapter, verse) {
+    // Cambiar a pantalla de lectura
+    document.getElementById('screen-selection').classList.remove('active');
+    document.getElementById('screen-reading').classList.add('active');
+    
+    // Mostrar referencia en pantalla de lectura
+    const combined = `${book} ${chapter}:${verse}`;
+    const refEl = document.getElementById('reading-reference');
+    if (refEl) refEl.textContent = combined;
+    // Actualizar small selectors visuales si existen
+    const sb = document.getElementById('small-selected-book');
+    const sc = document.getElementById('small-selected-chapter');
+    const sv = document.getElementById('small-selected-verse');
+    if (sb) sb.textContent = book;
+    if (sc) sc.textContent = String(chapter);
+    if (sv) sv.textContent = String(verse);
+    
+    // Asegurar que los small-dropdowns estén poblados para el libro y capítulo actuales
+    // (esto soluciona el caso en que el libro viene precargado y el usuario quiere cambiar capítulo)
+    try {
+        if (typeof handleSmallBookSelection === 'function') {
+            handleSmallBookSelection(book);
         }
+        if (typeof handleSmallChapterSelection === 'function') {
+            handleSmallChapterSelection(String(chapter));
+        }
+        // Asegurar que el verset pequeño muestre el versículo actual
+        const smallVerseEl = document.getElementById('small-selected-verse');
+        if (smallVerseEl) smallVerseEl.textContent = String(verse);
+    } catch (e) {
+        console.warn('Error sincronizando small selectors:', e);
+    }
+
+    // Cargar y mostrar versículo siempre
+    fetchAndShowVerse(book, chapter, verse);
+}
+
+function goToSelectionScreen() {
+    // Cambiar a pantalla de selección
+    document.getElementById('screen-reading').classList.remove('active');
+    document.getElementById('screen-selection').classList.add('active');
+    
+    // Resetear selecciones
+    document.getElementById('selected-book').textContent = 'Selectează';
+    document.getElementById('selected-chapter').textContent = '0';
+    document.getElementById('selected-verse').textContent = '0';
+    
+    // Deshabilitar Capitol y Verset
+    document.getElementById('chapter-selector').setAttribute('data-disabled', 'true');
+    document.getElementById('verse-selector').setAttribute('data-disabled', 'true');
+    
+    // Limpiar texto de lectura
+    document.getElementById('verse-text-reading').textContent = '';
+    document.getElementById('fetch-status-reading').textContent = '';
+}
+
+// --- NUEVA LÓGICA: Navegación y fetch de texto ---
+
+const DEFAULT_API_BASE = 'https://bible-api.com/data'; // configurable (usaremos /data/{translation}/{book}/{chapter})
+
+// ===== CACHÉ DE RESPUESTAS DEL API =====
+// Guardamos los capítulos ya obtenidos para evitar consultas redundantes
+const apiCache = {};
+
+function getCacheKey(translation, bookCode, chapter) {
+    return `${translation}:${bookCode}:${chapter}`;
+}
+
+function getCachedChapter(translation, bookCode, chapter) {
+    const key = getCacheKey(translation, bookCode, chapter);
+    return apiCache[key] || null;
+}
+
+function setCachedChapter(translation, bookCode, chapter, data) {
+    const key = getCacheKey(translation, bookCode, chapter);
+    apiCache[key] = data;
+}
+
+// Mapeo de nombres de libros (rumano) a códigos de API
+const bookCodeMap = {
+    'Geneza': 'GEN',
+    'Exodul': 'EXO',
+    'Leviticul': 'LEV',
+    'Numeri': 'NUM',
+    'Deuteronomul': 'DEU',
+    'Iosua': 'JOS',
+    'Judecători': 'JDG',
+    'Rut': 'RUT',
+    '1 Samuel': '1SA',
+    '2 Samuel': '2SA',
+    '1 Împărați': '1KI',
+    '2 Împărați': '2KI',
+    '1 Cronici': '1CH',
+    '2 Cronici': '2CH',
+    'Ezra': 'EZR',
+    'Neemia': 'NEH',
+    'Estera': 'EST',
+    'Iov': 'JOB',
+    'Psalmii': 'PSA',
+    'Proverbele': 'PRO',
+    'Eclesiastul': 'ECC',
+    'Cântarea Cântărilor': 'SNG',
+    'Isaia': 'ISA',
+    'Ieremia': 'JER',
+    'Plângerile lui Ieremia': 'LAM',
+    'Ezechiel': 'EZK',
+    'Daniel': 'DAN',
+    'Osea': 'HOS',
+    'Ioel': 'JOL',
+    'Amos': 'AMO',
+    'Obadia': 'OBA',
+    'Iona': 'JON',
+    'Mica': 'MIC',
+    'Naum': 'NAM',
+    'Habacuc': 'HAB',
+    'Țefania': 'ZEP',
+    'Hagai': 'HAG',
+    'Zaharia': 'ZEC',
+    'Maleahi': 'MAL',
+    'Matei': 'MAT',
+    'Marcu': 'MRK',
+    'Luca': 'LUK',
+    'Ioan': 'JHN',
+    'Faptele Apostolilor': 'ACT',
+    'Romani': 'ROM',
+    '1 Corinteni': '1CO',
+    '2 Corinteni': '2CO',
+    'Galateni': 'GAL',
+    'Efeseni': 'EPH',
+    'Filipeni': 'PHP',
+    'Coloseni': 'COL',
+    '1 Tesaloniceni': '1TH',
+    '2 Tesaloniceni': '2TH',
+    '1 Timotei': '1TI',
+    '2 Timotei': '2TI',
+    'Tit': 'TIT',
+    'Filimon': 'PHM',
+    'Evrei': 'HEB',
+    'Iacov': 'JAS',
+    '1 Petru': '1PE',
+    '2 Petru': '2PE',
+    '1 Ioan': '1JN',
+    '2 Ioan': '2JN',
+    '3 Ioan': '3JN',
+    'Iuda': 'JUD',
+    'Apocalipsa': 'REV'
+};
+
+// Current reference cached in JS so navigation doesn't depend on DOM presence
+let _currentReference = null;
+// Navigation lock to prevent double-invocation while a transition runs
+let _isNavigating = false;
+
+function getCurrentReference() {
+    // Prefer cached current reference when available (keeps navigation correct even if some DOM nodes are missing)
+    if (_currentReference && _currentReference.book && !isNaN(_currentReference.chapter) && !isNaN(_currentReference.verse)) {
+        return _currentReference;
+    }
+
+    // Be defensive: selected-book/chapter/verse may not exist in all screen variants.
+    const selBookEl = document.getElementById('selected-book');
+    const selChapterEl = document.getElementById('selected-chapter');
+    const selVerseEl = document.getElementById('selected-verse');
+
+    let book = selBookEl?.textContent?.trim();
+    let chapter = selChapterEl ? parseInt(selChapterEl.textContent, 10) : NaN;
+    let verse = selVerseEl ? parseInt(selVerseEl.textContent, 10) : NaN;
+
+    // fallback to small selectors if main selected_* are not present
+    if ((!book || book === '') || isNaN(chapter) || isNaN(verse)) {
+        const sb = document.getElementById('small-selected-book')?.textContent?.trim();
+        const sc = document.getElementById('small-selected-chapter')?.textContent;
+        const sv = document.getElementById('small-selected-verse')?.textContent;
+        if ((!book || book === '') && sb) book = sb;
+        if (isNaN(chapter) && sc) chapter = parseInt(sc, 10);
+        if (isNaN(verse) && sv) verse = parseInt(sv, 10);
+    }
+
+    // fallback to reading reference text (e.g. "Numeri 1:21") if still missing
+    if ((!book || book === '') || isNaN(chapter) || isNaN(verse)) {
+        const rr = document.getElementById('reading-reference')?.textContent?.trim();
+        if (rr) {
+            const m = rr.match(/(.+?)\s+(\d+):(\d+)/);
+            if (m) {
+                if (!book || book === '') book = m[1].trim();
+                if (isNaN(chapter)) chapter = parseInt(m[2], 10);
+                if (isNaN(verse)) verse = parseInt(m[3], 10);
+            }
+        }
+    }
+
+    if (!book || isNaN(chapter) || isNaN(verse)) {
+        // fallback to cached current reference if available
+        if (_currentReference && _currentReference.book && !isNaN(_currentReference.chapter) && !isNaN(_currentReference.verse)) {
+            return _currentReference;
+        }
+        return null;
+    }
+
+    // ensure cache matches DOM-derived reference
+    _currentReference = { book, chapter, verse };
+    return { book, chapter, verse };
+}
+
+function setReference(book, chapter, verse, shouldFetch = true) {
+    if (!bibleStructure[book]) return;
+    // update cached current reference first
+    _currentReference = { book, chapter, verse };
+
+    const selBookEl = document.getElementById('selected-book');
+    if (selBookEl) selBookEl.textContent = book;
+    // Some setups may not have the selection components injected (they were removed/commented).
+    // Call handlers defensively so a missing DOM or handler doesn't break navigation.
+    try {
+        if (typeof handleBookSelection === 'function') handleBookSelection(book);
+    } catch (e) {
+        console.warn('handleBookSelection error (ignored):', e);
+    }
+
+    // set chapter and verses dropdowns
+    const selChapEl = document.getElementById('selected-chapter');
+    if (selChapEl) selChapEl.textContent = String(chapter);
+    try {
+        if (typeof handleChapterSelection === 'function') handleChapterSelection(String(chapter));
+    } catch (e) {
+        console.warn('handleChapterSelection error (ignored):', e);
+    }
+
+    const selVerseEl = document.getElementById('selected-verse');
+    if (selVerseEl) selVerseEl.textContent = String(verse);
+
+    // Ir a pantalla de lectura
+    goToReadingScreen(book, chapter, verse);
+}
+
+function fetchAndShowVerse(book, chapter, verse) {
+    const translation = document.getElementById('translation-select')?.value || 'rccv';
+
+    const bookCode = bookCodeMap[book];
+    if (!bookCode) {
+        document.getElementById('fetch-status-reading').textContent = `Carte "${book}" nu a fost găsită.`;
+        document.getElementById('verse-text-reading').textContent = '';
+        return;
+    }
+
+    const statusEl = document.getElementById('fetch-status-reading');
+    const textEl = document.getElementById('verse-text-reading');
+    
+    statusEl.textContent = 'Se încarcă...';
+    textEl.textContent = '';
+
+    // Verificar si ya tenemos este capítulo en caché
+    const cached = getCachedChapter(translation, bookCode, chapter);
+    if (cached) {
+        console.log('Usando datos en caché para:', book, chapter);
+        displayVerse(cached, book, chapter, verse, statusEl, textEl);
+        return;
+    }
+
+    // Si no está en caché, hacer fetch del API
+    const base = DEFAULT_API_BASE.replace(/\/$/, '');
+    const url = `${base}/${encodeURIComponent(translation)}/${encodeURIComponent(bookCode)}/${encodeURIComponent(String(chapter))}`;
+
+    fetch(url, { timeout: 8000 }) // 8 segundos de timeout
+        .then(resp => {
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            return resp.json();
+        })
+        .then(data => {
+            console.log('API Response:', data);
+            
+            // Guardar en caché
+            setCachedChapter(translation, bookCode, chapter, data);
+            
+            // Mostrar el versículo
+            displayVerse(data, book, chapter, verse, statusEl, textEl);
+        })
+        .catch(err => {
+            console.error('Fetch error:', err);
+            statusEl.textContent = `Eroare: ${err.message}. Încearcă din nou.`;
+            textEl.textContent = '';
+        });
+}
+
+// Create and show a temporary dropdown near an anchor element.
+// items: array of { value, label }
+// onSelect(item) called when user selects an item
+function showTempDropdown(anchorEl, items, onSelect = () => {}) {
+    if (!anchorEl || !items || !Array.isArray(items)) return null;
+
+    // remove any existing temp dropdowns
+    document.querySelectorAll('.temp-dropdown').forEach(el => el.remove());
+
+    const dd = document.createElement('div');
+    dd.className = 'dropdown-content temp-dropdown show';
+    dd.style.position = 'absolute';
+    dd.style.transform = 'none';
+    dd.style.zIndex = 9999;
+
+    items.forEach(it => {
+        const p = document.createElement('p');
+        p.setAttribute('data-value', String(it.value));
+        p.textContent = it.label;
+        dd.appendChild(p);
     });
+
+    // position below anchorEl
+    const rect = anchorEl.getBoundingClientRect();
+    // small offset
+    const top = rect.bottom + window.scrollY + 6;
+    const left = rect.left + window.scrollX;
+    dd.style.left = left + 'px';
+    dd.style.top = top + 'px';
+    dd.style.minWidth = Math.max(120, rect.width) + 'px';
+
+    // click handler
+    const onDocClick = (ev) => {
+        if (!dd.contains(ev.target)) {
+            cleanup();
+        }
+    };
+
+    function cleanup() {
+        document.removeEventListener('click', onDocClick);
+        if (dd && dd.parentNode) dd.parentNode.removeChild(dd);
+    }
+
+    dd.addEventListener('click', (ev) => {
+        const p = ev.target.closest && ev.target.closest('p');
+        if (!p) return;
+        const val = p.getAttribute('data-value');
+        const label = p.textContent;
+        try { onSelect({ value: val, label }); } catch (e) { console.warn('temp dropdown onSelect error', e); }
+        cleanup();
+    });
+
+    document.body.appendChild(dd);
+    // click outside closes
+    setTimeout(() => document.addEventListener('click', onDocClick), 10);
+    return dd;
+}
+
+function displayVerse(data, book, chapter, verse, statusEl, textEl) {
+    // Buscar el versículo en data.verses
+    let text = '';
+    if (data.verses && Array.isArray(data.verses)) {
+        const vIndex = verse - 1; // versículos son 1-based, array es 0-based
+        if (vIndex >= 0 && vIndex < data.verses.length && data.verses[vIndex].text) {
+            text = data.verses[vIndex].text;
+        }
+    }
+
+    if (!text) {
+        statusEl.textContent = `Versiculul ${chapter}:${verse} nu a fost găsit.`;
+        textEl.textContent = '';
+        return;
+    }
+
+    textEl.textContent = text.trim();
+    // Render the reference as discrete selectable parts (book and chapter:verse)
+    // They are visually unobtrusive and only underline on hover to indicate clickability.
+    try {
+        const safeBook = String(book).replace(/"/g, '&quot;');
+        // Render book, chapter and verse as separate clickable parts so each can open its small dropdown
+        statusEl.innerHTML = `
+            <span class="ref-book ref-part" data-book="${safeBook}">${book}</span>
+            <span class="ref-chapter ref-part" data-chapter="${chapter}">${chapter}</span>
+            <span class="ref-colon">:</span>
+            <span class="ref-verse ref-part" data-verse="${verse}">${verse}</span>
+        `;
+
+        // attach click handler to statusEl to open the corresponding small selector dropdowns
+        statusEl.onclick = (ev) => {
+            try {
+                // close any open dropdowns first
+                document.querySelectorAll('.dropdown-content.show').forEach(dd => dd.classList.remove('show'));
+
+                const bookEl = ev.target.closest && ev.target.closest('.ref-book');
+                if (bookEl) {
+                    const bookName = bookEl.getAttribute('data-book');
+                    // populate small selectors for this book and open the book dropdown
+                    try {
+                        const sb = document.getElementById('small-selected-book'); if (sb) sb.textContent = bookName;
+                        if (typeof handleSmallBookSelection === 'function') try { handleSmallBookSelection(bookName); } catch (e) { console.warn('handleSmallBookSelection:', e); }
+                        const dd = document.getElementById('small-book-dropdown');
+                        if (dd) {
+                            dd.classList.add('show');
+                        } else {
+                            // fallback: show a temporary dropdown near the clicked reference so we stay on the reading screen
+                            try {
+                                const books = Object.keys(bibleStructure).map(b => ({ value: b, label: b }));
+                                showTempDropdown(bookEl || statusEl, books, (item) => {
+                                    try {
+                                        const bookName2 = item && item.value ? String(item.value) : null;
+                                        if (!bookName2) return;
+                                        // preserve previous chapter/verse when possible
+                                        const prevChap = parseInt(document.getElementById('small-selected-chapter')?.textContent, 10) || parseInt(chapter, 10) || 1;
+                                        const prevVerse = parseInt(document.getElementById('small-selected-verse')?.textContent, 10) || parseInt(verse, 10) || 1;
+
+                                        const bookData = bibleStructure[bookName2] || {};
+                                        const chaptersList = Object.keys(bookData).map(n=>parseInt(n,10)).sort((a,b)=>a-b);
+
+                                        let newChap, newVerse;
+                                        if (bookData && typeof bookData[prevChap] !== 'undefined') {
+                                            // same chapter exists in new book
+                                            const totalVerses = bookData[prevChap] || 0;
+                                            newChap = prevChap;
+                                            if (totalVerses >= prevVerse) newVerse = prevVerse; else newVerse = 1;
+                                        } else {
+                                            // fallback to first chapter
+                                            newChap = chaptersList.length ? chaptersList[0] : 1;
+                                            newVerse = 1;
+                                        }
+
+                                        const sb = document.getElementById('small-selected-book'); if (sb) sb.textContent = bookName2;
+                                        const sc = document.getElementById('small-selected-chapter'); if (sc) sc.textContent = String(newChap);
+                                        const sv = document.getElementById('small-selected-verse'); if (sv) sv.textContent = String(newVerse);
+
+                                        if (typeof handleSmallBookSelection === 'function') try { handleSmallBookSelection(bookName2); } catch (e) { console.warn(e); }
+                                        // load selected verse of the new book/chapter
+                                        try { setReference(bookName2, newChap, newVerse, true); } catch (e) { console.warn('setReference after temp book select failed', e); }
+                                    } catch (e) { console.warn('temp book select error', e); }
+                                });
+                            } catch (e) { console.warn('temp dropdown book fallback failed', e); }
+                        }
+                    } catch (e) { console.warn(e); }
+                    return;
+                }
+
+                const chapEl = ev.target.closest && ev.target.closest('.ref-chapter');
+                if (chapEl) {
+                    const ch = parseInt(chapEl.getAttribute('data-chapter'), 10);
+                    if (!isNaN(ch)) {
+                        try {
+                            const sc = document.getElementById('small-selected-chapter'); if (sc) sc.textContent = String(ch);
+                            // ensure verses dropdown is populated for the current book/chapter
+                            if (typeof handleSmallChapterSelection === 'function') try { handleSmallChapterSelection(String(ch)); } catch (e) { console.warn('handleSmallChapterSelection:', e); }
+                            const dd = document.getElementById('small-chapter-dropdown');
+                            if (dd) {
+                                dd.classList.add('show');
+                            } else {
+                                try {
+                                    const bookName = book;
+                                    const chapters = Object.keys(bibleStructure[bookName] || {}).map(n => ({ value: n, label: n }));
+                                    showTempDropdown(chapEl || statusEl, chapters, (item) => {
+                                            try {
+                                                const selChap = item && item.value ? parseInt(item.value, 10) : NaN;
+                                                if (isNaN(selChap)) return;
+                                                const sc = document.getElementById('small-selected-chapter'); if (sc) sc.textContent = String(selChap);
+                                                if (typeof handleSmallChapterSelection === 'function') try { handleSmallChapterSelection(String(selChap)); } catch (e) { console.warn(e); }
+                                                // load verse: keep previous verse only if this chapter has that many verses, otherwise set to 1
+                                                const prevVerse = parseInt(document.getElementById('small-selected-verse')?.textContent, 10) || parseInt(verse, 10) || 1;
+                                                const totalVerses = (bibleStructure[book] && bibleStructure[book][selChap]) || 0;
+                                                const vToUse = (totalVerses >= prevVerse) ? prevVerse : 1;
+                                                try { setReference(book, selChap, vToUse, true); } catch (e) { console.warn('setReference after temp chapter select failed', e); }
+                                            } catch (e) { console.warn('temp chapter select error', e); }
+                                        });
+                                } catch (e) { console.warn('temp dropdown chapter fallback failed', e); }
+                            }
+                        } catch (e) { console.warn(e); }
+                    }
+                    return;
+                }
+
+                const verseEl = ev.target.closest && ev.target.closest('.ref-verse');
+                if (verseEl) {
+                    const v = parseInt(verseEl.getAttribute('data-verse'), 10);
+                    if (!isNaN(v)) {
+                        try {
+                            // ensure verses list is populated for current chapter
+                            const currentChapter = parseInt(document.getElementById('small-selected-chapter')?.textContent, 10);
+                            if (isNaN(currentChapter)) {
+                                // try to derive from displayed ref
+                                const chFromRef = parseInt(chapter, 10);
+                                if (!isNaN(chFromRef)) {
+                                    const sc = document.getElementById('small-selected-chapter'); if (sc) sc.textContent = String(chFromRef);
+                                    if (typeof handleSmallChapterSelection === 'function') try { handleSmallChapterSelection(String(chFromRef)); } catch (e) { /* ignore */ }
+                                }
+                            }
+                            const sv = document.getElementById('small-selected-verse'); if (sv) sv.textContent = String(v);
+                            const dd = document.getElementById('small-verse-dropdown');
+                            if (dd) {
+                                dd.classList.add('show');
+                            } else {
+                                try {
+                                    const bookName = book;
+                                    const chapNum = parseInt(document.getElementById('small-selected-chapter')?.textContent || chapter, 10);
+                                    const total = (bibleStructure[bookName] && bibleStructure[bookName][chapNum]) || 0;
+                                    const verses = Array.from({ length: total }, (_, i) => ({ value: i + 1, label: String(i + 1) }));
+                                    showTempDropdown(verseEl || statusEl, verses, (item) => {
+                                        try {
+                                            const selV = item && item.value ? parseInt(item.value, 10) : NaN;
+                                            if (!isNaN(selV)) setReference(bookName, chapNum, selV, true);
+                                        } catch (e) { console.warn('temp verse select error', e); }
+                                    });
+                                } catch (e) { console.warn('temp dropdown verse fallback failed', e); }
+                            }
+                        } catch (e) { console.warn(e); }
+                    }
+                    return;
+                }
+            } catch (e) {
+                console.warn('statusEl click handler error', e);
+            }
+        };
+    } catch (e) {
+        // fallback: plain text
+        statusEl.textContent = `${book} ${chapter}:${verse}`;
+    }
+
+    // Ajustar tamaño de letra para que el texto quepa en la hoja si es necesario.
+    // Mantener el tamaño máximo (5rem) si cabe; reducir proporcionalmente hasta un mínimo.
+    try {
+        // preferimos usar el id si existe
+        if (typeof fitVerseFontSize === 'function') fitVerseFontSize();
+    } catch (e) {
+        console.warn('fitVerseFontSize failed:', e);
+    }
+}
+
+// Animación de pasar página: reproduce animaciones out -> update -> in
+function flipTransition(direction, updateCallback) {
+    // Animate the inner verse text element instead of the whole container
+    const container = document.getElementById('verse-text-reading') || document.getElementById('verse-text-container-reading');
+    if (!container) {
+        updateCallback();
+        return;
+    }
+
+    const outClass = direction === 'next' ? 'flip-out-left' : 'flip-out-right';
+    const inClass = direction === 'next' ? 'flip-in-right' : 'flip-in-left';
+
+    // Añadir clase de salida
+    container.classList.add(outClass);
+
+    // Cuando termine la animación de salida, actualizar el contenido y hacer animación de entrada
+    const onOutEnd = () => {
+        container.classList.remove(outClass);
+        container.removeEventListener('animationend', onOutEnd);
+
+        // clear safety timeout if set
+        if (safetyTimer) {
+            clearTimeout(safetyTimer);
+            safetyTimer = null;
+        }
+
+        // Ejecutar la actualización (cambia la referencia y hace fetch)
+        try {
+            updateCallback();
+        } catch (e) {
+            console.error('Error en updateCallback durante flipTransition:', e);
+        }
+
+        // Forzar reflow antes de la animación de entrada para asegurar que la clase se aplique
+        // eslint-disable-next-line no-unused-expressions
+        container.offsetWidth;
+
+        container.classList.add(inClass);
+
+        const onInEnd = () => {
+            container.classList.remove(inClass);
+            container.removeEventListener('animationend', onInEnd);
+            // navigation finished
+            try { _isNavigating = false; } catch (e) { /* ignore */ }
+            if (finalClearTimer) { clearTimeout(finalClearTimer); finalClearTimer = null; }
+        };
+        container.addEventListener('animationend', onInEnd);
+    };
+
+    container.addEventListener('animationend', onOutEnd);
+
+    // Safety: if animationend doesn't fire (missing CSS, zero-duration, or other issue),
+    // call the out-end handler after a short timeout so navigation still proceeds.
+    let safetyTimer = setTimeout(() => {
+        try {
+            // only run if still present
+            onOutEnd();
+        } catch (e) {
+            console.warn('flipTransition safety timer error', e);
+        }
+    }, 700);
+    // Final guard: ensure navigation lock is cleared eventually even if animations don't fire
+    let finalClearTimer = setTimeout(() => {
+        try { _isNavigating = false; } catch (e) { /* ignore */ }
+    }, 1400);
+}
+
+function randomVerse() {
+    const books = Object.keys(bibleStructure);
+    const book = books[Math.floor(Math.random() * books.length)];
+    const chapters = Object.keys(bibleStructure[book]);
+    const chapter = parseInt(chapters[Math.floor(Math.random() * chapters.length)], 10);
+    const verse = Math.floor(Math.random() * bibleStructure[book][chapter]) + 1;
+    setReference(book, chapter, verse, true);
+}
+
+function goNext() {
+    if (_isNavigating) return;
+    const cur = getCurrentReference();
+    console.log('goNext: current', cur);
+    if (!cur) return;
+    const { book, chapter, verse } = cur;
+    const bookChapters = bibleStructure[book];
+    if (!bookChapters) return;
+
+    // Compute next reference without applying it yet
+    let target = null;
+
+    const lastVerse = bookChapters[chapter];
+    if (verse < lastVerse) {
+        target = { book, chapter, verse: verse + 1 };
+    } else {
+        // next chapter
+        const chapters = Object.keys(bookChapters).map(n => parseInt(n, 10)).sort((a,b)=>a-b);
+        const chapterIndex = chapters.indexOf(chapter);
+        if (chapterIndex < chapters.length - 1) {
+            const nextChapter = chapters[chapterIndex + 1];
+            target = { book, chapter: nextChapter, verse: 1 };
+        } else {
+            // next book
+            const books = Object.keys(bibleStructure);
+            const bookIndex = books.indexOf(book);
+            const nextBook = books[(bookIndex + 1) % books.length];
+            const nextChapter = Math.min(...Object.keys(bibleStructure[nextBook]).map(n=>parseInt(n,10)));
+            target = { book: nextBook, chapter: nextChapter, verse: 1 };
+        }
+    }
+
+    if (!target) return;
+
+    console.log('goNext: target', target);
+    _isNavigating = true;
+    flipTransition('next', () => {
+        setReference(target.book, target.chapter, target.verse, true);
+    });
+}
+
+function goPrev() {
+    if (_isNavigating) return;
+    const cur = getCurrentReference();
+    console.log('goPrev: current', cur);
+    if (!cur) return;
+    const { book, chapter, verse } = cur;
+    const bookChapters = bibleStructure[book];
+    if (!bookChapters) return;
+
+    let target = null;
+
+    if (verse > 1) {
+        target = { book, chapter, verse: verse - 1 };
+    } else {
+        // previous chapter
+        const chapters = Object.keys(bookChapters).map(n => parseInt(n, 10)).sort((a,b)=>a-b);
+        const chapterIndex = chapters.indexOf(chapter);
+        if (chapterIndex > 0) {
+            const prevChapter = chapters[chapterIndex - 1];
+            const lastVersePrevChapter = bookChapters[prevChapter];
+            target = { book, chapter: prevChapter, verse: lastVersePrevChapter };
+        } else {
+            // previous book
+            const books = Object.keys(bibleStructure);
+            const bookIndex = books.indexOf(book);
+            const prevBook = books[(bookIndex - 1 + books.length) % books.length];
+            const prevChapters = Object.keys(bibleStructure[prevBook]).map(n=>parseInt(n,10)).sort((a,b)=>a-b);
+            const lastChap = prevChapters[prevChapters.length - 1];
+            const lastVerse = bibleStructure[prevBook][lastChap];
+            target = { book: prevBook, chapter: lastChap, verse: lastVerse };
+        }
+    }
+
+    if (!target) return;
+
+    console.log('goPrev: target', target);
+    _isNavigating = true;
+    flipTransition('prev', () => {
+        setReference(target.book, target.chapter, target.verse, true);
+    });
+}
+
+// Note: reading navigation buttons removed from UI per user preference; navigation remains available via keyboard.
+
+// Keyboard navigation: use left/right arrow keys to go previous/next.
+// Ignore events when focus is inside an input, textarea, select or contentEditable element,
+// and ignore when modifier keys (Ctrl/Alt/Meta) are pressed to avoid conflicts.
+document.addEventListener('keydown', (ev) => {
+    try {
+        const active = document.activeElement;
+        const tag = active && active.tagName ? active.tagName.toUpperCase() : null;
+        const isEditing = active && (
+            active.isContentEditable ||
+            tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+        );
+
+        if (isEditing) return; // don't intercept typing
+        if (ev.ctrlKey || ev.altKey || ev.metaKey) return; // allow browser shortcuts
+
+        if (ev.key === 'ArrowRight') {
+            ev.preventDefault();
+            goNext();
+        } else if (ev.key === 'ArrowLeft') {
+            ev.preventDefault();
+            goPrev();
+        }
+    } catch (e) {
+        // defensive: do not break app on unexpected errors
+        console.warn('keyboard nav handler error', e);
+    }
 });
 
-// --- Lógica de Dependencia (Capítulos y Versículos) ---
+// Fin de script
 
-// Función para rellenar las opciones de un desplegable
-function fillDropdown(dropdownId, options, isBook = false) {
-    const dropdown = document.getElementById(dropdownId);
-    dropdown.innerHTML = '';
-    options.forEach(option => {
-        const p = document.createElement('p');
-        p.setAttribute('data-value', option);
-        p.textContent = option;
-        dropdown.appendChild(p);
+// Fin de script
+
+// Inicial: no mostrar texto hasta que el usuario active el toggle, pero podemos poner un versículo aleatorio si quiere
+// (dejamos el estado inicial como estaba: primer libro, primer capítulo, verset 1)
+
+// -------------------------
+// Ajuste dinámico de font-size para el texto del versículo (mejorado)
+// - Calcula la altura disponible restando la altura de otros elementos dentro del contenedor
+// - Usa búsqueda binaria para encontrar el mayor font-size (px) que haga que el contenido quepa
+// - Si no cabe con el mínimo, deja el tamaño mínimo y permite el scrollbar
+// -------------------------
+function fitVerseFontSize(options = {}) {
+    const textEl = document.getElementById('verse-text-reading') || document.querySelector('.verse-text-reading');
+    if (!textEl) return;
+
+    const container = textEl.closest('.verse-text-container-reading') || document.getElementById('reading-sheet') || textEl.parentElement;
+    if (!container) return;
+
+    const rootFont = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const maxRem = (options.maxRem != null) ? options.maxRem : 5; // default 5rem
+    const minPx = (options.minPx != null) ? options.minPx : Math.max(14, 0.875 * rootFont);
+    const maxPx = maxRem * rootFont;
+
+    // calcular ancho/alto disponibles dentro del contenedor (restando padding y siblings normales)
+    const containerStyle = getComputedStyle(container);
+    const padTop = parseFloat(containerStyle.paddingTop) || 0;
+    const padBottom = parseFloat(containerStyle.paddingBottom) || 0;
+    const padLeft = parseFloat(containerStyle.paddingLeft) || 0;
+    const padRight = parseFloat(containerStyle.paddingRight) || 0;
+
+    let availableHeight = container.clientHeight - padTop - padBottom;
+    let availableWidth = container.clientWidth - padLeft - padRight;
+
+    Array.from(container.children).forEach((ch) => {
+        if (ch === textEl) return;
+        const style = getComputedStyle(ch);
+        if (style.display === 'none' || style.visibility === 'hidden') return;
+        if (style.position === 'absolute' || style.position === 'fixed') return; // ignore overlays
+        availableHeight -= ch.offsetHeight;
     });
+
+    if (availableHeight <= 24) availableHeight = Math.max(48, container.clientHeight * 0.5);
+    if (availableWidth <= 40) availableWidth = Math.max(100, container.clientWidth - 32);
+
+    // asegurar box-sizing y ancho fijo para mediciones
+    textEl.style.boxSizing = 'border-box';
+    const measuredWidth = Math.max(20, Math.floor(availableWidth));
+    textEl.style.width = measuredWidth + 'px';
+
+    // Binary search entre minPx y maxPx para el mayor tamaño que quepa (considerando ancho y alto)
+    let low = Math.round(minPx);
+    let high = Math.round(maxPx);
+    let best = low;
+
+    // Si con el tamaño máximo ya cabe, usamos maxPx
+    textEl.style.fontSize = high + 'px';
+    // forzar reflow
+    // eslint-disable-next-line no-unused-expressions
+    textEl.offsetHeight;
+    if (textEl.scrollHeight <= availableHeight && textEl.scrollWidth <= measuredWidth + 1) {
+        textEl.style.fontSize = high + 'px';
+        textEl.style.width = '';
+        return;
+    }
+
+    // búsqueda binaria con límite de iteraciones
+    for (let i = 0; i < 12 && low <= high; i += 1) {
+        const mid = Math.floor((low + high) / 2);
+        textEl.style.fontSize = mid + 'px';
+        // forzar reflow
+        // eslint-disable-next-line no-unused-expressions
+        textEl.offsetHeight;
+
+        const fitsVert = textEl.scrollHeight <= availableHeight;
+        const fitsHorz = textEl.scrollWidth <= measuredWidth + 1;
+
+        if (fitsVert && fitsHorz) {
+            best = mid;
+            low = mid + 1; // intentar mayor
+        } else {
+            high = mid - 1; // reducir
+        }
+    }
+
+    // aplicar el mejor encontrado (o el mínimo)
+    const finalSize = Math.max(minPx, best);
+    // aplicar tamaño final y asegurar que el ancho sea 100% del contenedor
+    textEl.style.fontSize = finalSize + 'px';
+    textEl.style.width = '';
 }
 
-// 3. Gestionarea selecției Cărții (actualizează Capitolele)
-function handleBookSelection(bookName) {
-    const bookData = bibleStructure[bookName] || {};
-    const chapters = Object.keys(bookData); // Obține lista de capitole: ['1', '2', '3', ...]
-    
-    // Populează meniul derulant de capitole
-    fillDropdown('chapter-dropdown', chapters);
-    
-    // Setează capitolul inițial și actualizează meniul derulant de versete
-    const firstChapter = chapters[0] || '1';
-    document.getElementById('selected-chapter').textContent = firstChapter;
-    handleChapterSelection(firstChapter);
+// debounce simple para resize
+let _fitVerseTimeout = null;
+window.addEventListener('resize', () => {
+    clearTimeout(_fitVerseTimeout);
+    _fitVerseTimeout = setTimeout(() => {
+        try { fitVerseFontSize(); } catch (e) { console.warn(e); }
+    }, 140);
+});
+
+/* ----------------------
+   Custom dropdown loader + helpers
+   - Loads components/dropdown.html template and exposes two helpers:
+       loadCustomDropdownTemplate() -> Promise<void>
+       createCustomDropdown(containerElement, itemsArray, options) -> { destroy() }
+   - The created dropdown will auto-open upward or downward depending on available space.
+   Notes: non-invasive: doesn't replace existing .dropdown-content behaviour unless you instantiate it.
+   ---------------------- */
+
+let _customDropdownTemplate = null;
+
+async function loadCustomDropdownTemplate() {
+    if (_customDropdownTemplate) return;
+    try {
+        const resp = await fetch('components/dropdown.html');
+        if (!resp.ok) throw new Error('Cannot load component template');
+        const text = await resp.text();
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = text;
+        _customDropdownTemplate = wrapper.querySelector('#custom-dropdown-template');
+        if (!_customDropdownTemplate) {
+            console.warn('custom dropdown template not found in components/dropdown.html');
+            _customDropdownTemplate = null;
+        }
+    } catch (e) {
+        console.warn('Failed to load custom dropdown template:', e);
+        _customDropdownTemplate = null;
+    }
 }
 
-// 4. Gestionarea selecției Capitolului (actualizează Versetele)
-function handleChapterSelection(chapterNumber) {
-    const currentBookName = document.getElementById('selected-book').textContent;
-    const bookData = bibleStructure[currentBookName] || {};
-    const totalVerses = bookData[chapterNumber] || 0; // Obține numărul de versete pentru capitolul selectat
+function createCustomDropdown(containerElement, items = [], options = {}) {
+    // containerElement: element inside which to create the dropdown (e.g. a .selector-wrapper)
+    // items: array of { value: string|number, label: string }
+    // options: { labelText, onSelect(item) }
+    if (!_customDropdownTemplate) {
+        console.warn('Custom dropdown template not loaded. Call loadCustomDropdownTemplate() first.');
+        return null;
+    }
 
-    const verses = Array.from({ length: totalVerses }, (_, i) => i + 1);
-    
-    // Populează meniul derulant de versete
-    fillDropdown('verse-dropdown', verses);
-    
-    // Setează versetul inițial
-    document.getElementById('selected-verse').textContent = 1;
+    const tpl = _customDropdownTemplate.content.cloneNode(true);
+    const root = tpl.querySelector('.custom-dropdown');
+    const trigger = root.querySelector('.cd-trigger');
+    const labelEl = root.querySelector('.cd-label');
+    const contentEl = root.querySelector('.cd-content');
+
+    labelEl.textContent = options.labelText || labelEl.textContent || 'Selecciona';
+
+    const buildList = (list) => {
+        contentEl.innerHTML = '';
+        if (!list || list.length === 0) {
+            const p = document.createElement('div');
+            p.className = 'cd-empty';
+            p.textContent = options.emptyText || 'Nu există elemente';
+            contentEl.appendChild(p);
+            return;
+        }
+        list.forEach(it => {
+            const p = document.createElement('p');
+            const val = (typeof it === 'object') ? it.value : it;
+            const lab = (typeof it === 'object') ? it.label : String(it);
+            p.setAttribute('data-value', String(val));
+            p.textContent = lab;
+            contentEl.appendChild(p);
+        });
+    };
+
+    buildList(items);
+
+    // Insert before the end of containerElement
+    containerElement.appendChild(root);
+
+    let open = false;
+
+    const decideOpenDirection = () => {
+        // Force dropdown to always open downwards (user requested consistent down behavior).
+        return 'down';
+    };
+
+    const openDropdown = () => {
+        const dir = decideOpenDirection();
+        contentEl.classList.remove('open-down', 'open-up');
+        if (dir === 'down') contentEl.classList.add('open-down'); else contentEl.classList.add('open-up');
+        contentEl.setAttribute('aria-hidden', 'false');
+        open = true;
+    };
+
+    const closeDropdown = () => {
+        contentEl.classList.remove('open-down', 'open-up');
+        contentEl.setAttribute('aria-hidden', 'true');
+        open = false;
+    };
+
+    const onTrigger = (ev) => {
+        ev.stopPropagation();
+        if (open) closeDropdown(); else openDropdown();
+    };
+
+    trigger.addEventListener('click', onTrigger);
+
+    const onDocClick = () => { if (open) closeDropdown(); };
+    document.addEventListener('click', onDocClick);
+
+    // click on items
+    contentEl.addEventListener('click', (ev) => {
+        const p = ev.target.closest('p');
+        if (!p) return;
+        const value = p.getAttribute('data-value');
+        const label = p.textContent;
+        closeDropdown();
+        if (typeof options.onSelect === 'function') options.onSelect({ value, label });
+    });
+
+    // expose API to update items or destroy
+    return {
+        destroy() {
+            trigger.removeEventListener('click', onTrigger);
+            document.removeEventListener('click', onDocClick);
+            if (root && root.parentNode) root.parentNode.removeChild(root);
+        },
+        update(list) { buildList(list); }
+    };
 }
 
-// --- Inicialización ---
+// Expose globally for ease of use in the app
+window.loadCustomDropdownTemplate = loadCustomDropdownTemplate;
+window.createCustomDropdown = createCustomDropdown;
 
-// Popularea listei de Cărți la încărcarea paginii
-function initializeSelectors() {
-    const bookNames = Object.keys(bibleStructure);
-    fillDropdown('book-dropdown', bookNames);
+// ----------------------
+// Screen component loader
+// ----------------------
+let _screenTemplates = {};
 
-    // Setează starea inițială
-    document.getElementById('selected-book').textContent = bookNames[0];
-    handleBookSelection(bookNames[0]);
+async function loadScreenTemplates() {
+    try {
+        const base = 'components';
+        const names = [
+            'screen-selection.html', 'screen-reading.html',
+            'selection-left.html', 'selection-nav.html',
+            'reading-left.html', 'reading-sheet.html', 'reading-nav.html'
+        ];
+
+        await Promise.all(names.map(async (f) => {
+            const resp = await fetch(`${base}/${f}`);
+            if (!resp.ok) throw new Error(`Failed to load ${f}`);
+            const text = await resp.text();
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = text;
+            // expect a <template> inside
+            const tpl = wrapper.querySelector('template');
+            if (tpl && tpl.id) {
+                _screenTemplates[tpl.id] = tpl;
+            }
+        }));
+    } catch (e) {
+        console.warn('Error loading screen templates:', e);
+    }
 }
 
-initializeSelectors();
+function applyScreenTemplates() {
+    try {
+        const selTpl = _screenTemplates['screen-selection-template'];
+        const readTpl = _screenTemplates['screen-reading-template'];
+
+        // Replace the placeholder elements with the template root nodes
+        if (selTpl) {
+            const container = document.getElementById('screen-selection');
+            if (container && container.parentNode) {
+                // the template is expected to have a single top-level element (the screen div)
+                const clone = selTpl.content.cloneNode(true);
+                const newNode = clone.firstElementChild || clone.firstChild;
+                if (newNode) {
+                    container.parentNode.replaceChild(newNode, container);
+                } else {
+                    // fallback to injecting inside if template structure is different
+                    container.innerHTML = '';
+                    container.appendChild(clone);
+                }
+            }
+        }
+
+        if (readTpl) {
+            const container = document.getElementById('screen-reading');
+            if (container && container.parentNode) {
+                const clone = readTpl.content.cloneNode(true);
+                const newNode = clone.firstElementChild || clone.firstChild;
+                if (newNode) {
+                    container.parentNode.replaceChild(newNode, container);
+                } else {
+                    container.innerHTML = '';
+                    container.appendChild(clone);
+                }
+            }
+        }
+
+        // After top-level screens are replaced, inject subcomponents into their slots
+        const injectSlot = (slotId, tplId) => {
+            try {
+                const tpl = _screenTemplates[tplId];
+                const slot = document.getElementById(slotId);
+                if (tpl && slot && slot.parentNode) {
+                    const clone = tpl.content.cloneNode(true);
+                    const newNode = clone.firstElementChild || clone.firstChild;
+                    if (newNode) slot.parentNode.replaceChild(newNode, slot);
+                    else slot.parentNode.replaceChild(clone, slot);
+                }
+            } catch (e) {
+                console.warn('Failed injecting slot', slotId, tplId, e);
+            }
+        };
+
+    // Selection subcomponents
+    injectSlot('selection-left-slot', 'selection-left-template');
+    injectSlot('selection-nav-slot', 'selection-nav-template');
+
+        // Reading subcomponents
+    injectSlot('reading-left-slot', 'reading-left-template');
+    injectSlot('reading-main-slot', 'reading-sheet-template');
+
+        // reading navigation UI intentionally not injected: we show only the verse text
+        // and the selected reference. Navigation remains available via keyboard (arrow keys).
+
+        // Notify listeners (screen scripts) that templates were injected so they can initialize.
+        try {
+            document.dispatchEvent(new CustomEvent('screens-injected'));
+        } catch (e) {
+            // ignore
+        }
+
+    } catch (e) {
+        console.warn('Error applying screen templates:', e);
+    }
+}
+
+// Load and apply at runtime (non-blocking)
+loadScreenTemplates().then(() => applyScreenTemplates());
+

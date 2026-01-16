@@ -1,0 +1,102 @@
+/* Component CSS: reading-sheet.css */
+
+/* Sheet container (fills grid cell) */
+#reading-sheet, .reading-sheet {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Verse container (visual "sheet") */
+.verse-text-container-reading {
+  /* Full-bleed sheet: occupy all available space with no margins or padding */
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* center text vertically */
+  align-items: stretch;
+  padding: 0;
+  margin: 0;
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Inner verse text: scrolls and animates */
+.verse-text-reading {
+  font-size: 5rem;
+  line-height: 1.8;
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #6b4328;
+  text-align: center;
+  padding: 0;
+  background: transparent;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  overflow: auto;
+  align-self: stretch;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+  will-change: transform, opacity;
+}
+
+.fetch-status-reading {
+  font-size: 2rem;
+  color: #6d4b36;
+  margin-top: 12px;
+  text-align: center;
+}
+
+/* Discrete selectable reference parts (book and chapter:verse) */
+.fetch-status-reading .ref-part {
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  display: inline-block;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: text-decoration 120ms ease, background-color 120ms ease;
+}
+.fetch-status-reading .ref-part:hover {
+  text-decoration: underline;
+  background-color: rgba(0,0,0,0.02);
+}
+/* removed .ref-space: spacing is controlled by inline elements and reset to avoid empty gaps */
+
+/* Page flip animations (inner text only) */
+@keyframes flipOutLeft {
+  0% { transform: translateX(0) rotateY(0deg); opacity: 1; }
+  60% { transform: translateX(-30%) rotateY(-10deg); opacity: 0.6; }
+  100% { transform: translateX(-60%) rotateY(-15deg); opacity: 0; }
+}
+@keyframes flipInRight {
+  0% { transform: translateX(60%) rotateY(15deg); opacity: 0; }
+  60% { transform: translateX(10%) rotateY(5deg); opacity: 0.6; }
+  100% { transform: translateX(0) rotateY(0deg); opacity: 1; }
+}
+@keyframes flipOutRight {
+  0% { transform: translateX(0) rotateY(0deg); opacity: 1; }
+  60% { transform: translateX(30%) rotateY(10deg); opacity: 0.6; }
+  100% { transform: translateX(60%) rotateY(15deg); opacity: 0; }
+}
+@keyframes flipInLeft {
+  0% { transform: translateX(-60%) rotateY(-15deg); opacity: 0; }
+  60% { transform: translateX(-10%) rotateY(-5deg); opacity: 0.6; }
+  100% { transform: translateX(0) rotateY(0deg); opacity: 1; }
+}
+
+.flip-out-left { animation: flipOutLeft 360ms cubic-bezier(.2,.8,.2,1) forwards; }
+.flip-in-right { animation: flipInRight 360ms cubic-bezier(.2,.8,.2,1) forwards; }
+.flip-out-right { animation: flipOutRight 360ms cubic-bezier(.2,.8,.2,1) forwards; }
+.flip-in-left { animation: flipInLeft 360ms cubic-bezier(.2,.8,.2,1) forwards; }

@@ -1,0 +1,24 @@
+<!--
+  Reusable custom dropdown component template.
+  Usage:
+    1) Fetch and clone the template via JS (helper provided in script.js):
+         await loadCustomDropdownTemplate();
+         createCustomDropdown(targetContainerElement, itemsArray, { onSelect(item) { ... } });
+
+    2) Or copy the template markup into your HTML and style as needed.
+
+  The component will auto-decide to open upwards or downwards based on viewport space.
+-->
+
+<template id="custom-dropdown-template">
+  
+
+  <div class="custom-dropdown" role="listbox">
+    <div class="cd-trigger" tabindex="0">
+      <div class="cd-label">Selecciona</div>
+      <div class="cd-caret">▾</div>
+    </div>
+
+    <div class="cd-content" aria-hidden="true"></div>
+  </div>
+</template>
