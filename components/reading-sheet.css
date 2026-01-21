@@ -100,3 +100,4 @@
 .flip-in-right { animation: flipInRight 360ms cubic-bezier(.2,.8,.2,1) forwards; }
 .flip-out-right { animation: flipOutRight 360ms cubic-bezier(.2,.8,.2,1) forwards; }
 .flip-in-left { animation: flipInLeft 360ms cubic-bezier(.2,.8,.2,1) forwards; }
+

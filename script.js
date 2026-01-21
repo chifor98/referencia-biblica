@@ -308,6 +308,11 @@ function setReference(book, chapter, verse, shouldFetch = true) {
     const selVerseEl = document.getElementById('selected-verse');
     if (selVerseEl) selVerseEl.textContent = String(verse);
 
+    // Notificar cambio de referencia para actualizar Autocitire
+    if (typeof updateAutocitireReference === 'function') {
+        updateAutocitireReference({ book, chapter, verse });
+    }
+
     // Ir a pantalla de lectura
     goToReadingScreen(book, chapter, verse);
 }
@@ -1024,9 +1029,10 @@ async function loadScreenTemplates() {
     try {
         const base = 'components';
         const names = [
-            'screen-selection.html', 'screen-reading.html',
+            'screen-selection.html', 'screen-reading.html', 'screen-voice.html',
             'selection-left.html', 'selection-nav.html',
-            'reading-left.html', 'reading-sheet.html', 'reading-nav.html'
+            'reading-left.html', 'reading-sheet.html', 'reading-nav.html',
+            'mic-button.html'
         ];
 
         await Promise.all(names.map(async (f) => {
@@ -1082,6 +1088,21 @@ function applyScreenTemplates() {
             }
         }
 
+        const voiceTpl = _screenTemplates['screen-voice-template'];
+        if (voiceTpl) {
+            const container = document.getElementById('screen-voice');
+            if (container && container.parentNode) {
+                const clone = voiceTpl.content.cloneNode(true);
+                const newNode = clone.firstElementChild || clone.firstChild;
+                if (newNode) {
+                    container.parentNode.replaceChild(newNode, container);
+                } else {
+                    container.innerHTML = '';
+                    container.appendChild(clone);
+                }
+            }
+        }
+
         // After top-level screens are replaced, inject subcomponents into their slots
         const injectSlot = (slotId, tplId) => {
             try {
@@ -1105,6 +1126,7 @@ function applyScreenTemplates() {
         // Reading subcomponents
     injectSlot('reading-left-slot', 'reading-left-template');
     injectSlot('reading-main-slot', 'reading-sheet-template');
+    injectSlot('mic-button-slot', 'mic-button-template');
 
         // reading navigation UI intentionally not injected: we show only the verse text
         // and the selected reference. Navigation remains available via keyboard (arrow keys).

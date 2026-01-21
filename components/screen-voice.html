@@ -1,0 +1,107 @@
+<!-- Component: Screen - Voice Recognition -->
+<template id="screen-voice-template">
+
+<div id="screen-voice" class="screen">
+<div class="voice-container">
+    <!-- Header con controles -->
+    <div class="voice-header">
+        <button id="voice-back-btn" class="voice-nav-btn" title="Înapoi la selecție">
+            ← Înapoi
+        </button>
+        <h2 class="voice-title">🎤 Detectare Vocală</h2>
+    </div>
+
+    <!-- Estado del micrófono -->
+    <div class="voice-status">
+        <div id="voice-mic-indicator" class="mic-indicator">
+            <div class="mic-icon">🎤</div>
+            <div class="mic-pulse"></div>
+        </div>
+        <div id="voice-status-text" class="status-text">
+            Apasă butonul pentru a porni ascultarea
+        </div>
+    </div>
+
+    <!-- Indicador de carga de la Biblia -->
+    <div id="bible-loading-indicator" class="bible-loading" style="display: block;">
+        <div class="loading-spinner">📖</div>
+        <div class="loading-text">Încărcare Biblie...</div>
+        <div class="loading-progress">
+            <div class="progress-bar">
+                <div id="bible-progress-fill" class="progress-fill" style="width: 0%"></div>
+            </div>
+            <div id="bible-progress-text" class="progress-text">0%</div>
+        </div>
+        <div class="loading-details" id="bible-loading-details">
+            Pregătire indexare...
+        </div>
+    </div>
+
+    <!-- Control principal -->
+    <div class="voice-controls">
+        <button id="voice-toggle-btn" class="voice-btn voice-btn-start">
+            <span class="btn-icon">▶</span>
+            <span class="btn-text">Autorecunoaște verset</span>
+        </button>
+        <button id="voice-autocitire-btn" class="voice-btn voice-btn-start" style="margin-left: 10px;">
+            <span class="btn-icon">▶</span>
+            <span class="btn-text">Autocitire</span>
+        </button>
+        <button id="voice-clear-btn" class="voice-btn voice-btn-secondary">
+            🗑️ Șterge Istoric
+        </button>
+    </div>
+
+    <!-- Transcripción en tiempo real -->
+    <div class="voice-transcription">
+        <div class="transcription-label">📝 Transcriere live:</div>
+        <div id="voice-transcript" class="transcript-text">
+            În așteptare...
+        </div>
+    </div>
+
+    <!-- Última referencia detectada -->
+    <div id="voice-last-reference" class="voice-last-reference" style="display: none;">
+        <div class="last-ref-header">
+            <span class="last-ref-label">📖 Ultima referință detectată:</span>
+            <span id="voice-processing-indicator" class="processing-indicator" style="display: none;">
+                ⏳ Procesare...
+            </span>
+        </div>
+        <div class="last-ref-content">
+            <div class="last-ref-citation" id="voice-last-citation">—</div>
+            <div class="last-ref-verse" id="voice-last-verse">—</div>
+            <button id="voice-view-full-btn" class="view-full-btn">
+                Citește versiunea completă →
+            </button>
+        </div>
+    </div>
+
+    <!-- Historial de referencias -->
+    <div class="voice-history">
+        <div class="history-header">
+            <span class="history-label">📜 Istoric recent</span>
+            <span id="voice-history-count" class="history-count">0 referințe</span>
+        </div>
+        <div id="voice-history-list" class="history-list">
+            <div class="history-empty">
+                Nicio referință detectată încă. Începe să vorbești despre Biblie!
+            </div>
+        </div>
+    </div>
+
+    <!-- Leyenda de ayuda -->
+    <div class="voice-help">
+        <details>
+            <summary>💡 Cum funcționează?</summary>
+            <ul>
+                <li>Spune referința în română: <em>"Ioan trei șaisprezece"</em> sau <em>"Geneza capitolul unu versetul unu"</em></li>
+                <li>Sistemul ascultă continuu și detectează referințele automat</li>
+                <li>Poți vorbi natural, ca și cum predici sau studiezi</li>
+                <li>Referințele detectate apar în istoric și poți accesa textul complet</li>
+            </ul>
+        </details>
+    </div>
+</div>
+
+</template>

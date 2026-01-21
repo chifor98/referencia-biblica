@@ -7,5 +7,37 @@
             <!-- <div id="reading-left-slot" class="reading-slot reading-left-slot"></div> -->
             <div id="reading-main-slot" class="reading-slot reading-main-slot"></div>
         </div>
+        
+        <!-- Panel de historial deslizable -->
+        <div id="voice-history-panel" class="voice-history-panel">
+          <div class="history-panel-header">
+            <h3 class="history-title">📜 Istoric</h3>
+            <button id="history-close-btn" class="history-close-btn">✕</button>
+          </div>
+          <div id="history-panel-list" class="history-panel-list">
+            <div class="history-empty-state">
+              Nicio referință detectată încă
+            </div>
+          </div>
+          <div class="history-panel-footer">
+            <button id="history-clear-btn" class="history-clear-btn">
+              🗑️ Șterge tot
+            </button>
+          </div>
+        </div>
+
+        <!-- Botón para abrir historial (oculto) -->
+        <button id="history-toggle-btn" class="history-toggle-btn" title="Deschide istoricul" style="display: none;">
+          <span class="history-icon">📜</span>
+          <span id="history-badge" class="history-badge" style="display: none;">0</span>
+        </button>
+        
+        <!-- Transcripción en tiempo real -->
+        <div id="voice-live-transcript" class="voice-live-transcript" style="display: none;">
+          <span id="voice-transcript-text" class="voice-transcript-text"></span>
+        </div>
+        
+        <!-- Mic button slot -->
+        <div id="mic-button-slot"></div>
     </div>
 </template>

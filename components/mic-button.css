@@ -1,0 +1,229 @@
+/* Component CSS: mic-button.css */
+
+.mic-button-container {
+  position: fixed;
+  right: 0;
+  top: 85%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 999;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 1rem;
+  border-radius: 12px 0 0 12px;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 80px;
+  transform: translateY(-50%) translateX(0);
+}
+
+.mic-button-container:hover {
+  transform: translateY(-50%) translateX(0);
+  width: auto;
+  padding: 1.5rem;
+}
+
+.voice-mode-selector-mic {
+  display: none;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem 0;
+  max-width: 200px;
+  align-items: flex-start;
+  order: 2;
+}
+
+.mic-button-container:hover .voice-mode-selector-mic {
+  display: flex;
+}
+
+.mode-option-mic {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #555;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.mode-option-mic:hover {
+  background: rgba(93, 187, 118, 0.1);
+}
+
+.mode-option-mic input[type="radio"] {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+.mode-option-mic input[type="radio"]:checked + span {
+  color: #5dbb76;
+  font-weight: 600;
+}
+
+.m-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 60px;
+  height: 60px;
+  position: relative;
+  cursor: pointer;
+  box-shadow: 0px 0px 30px 0px rgba(87, 175, 176, 0.5);
+  border-radius: 50%;
+  background: linear-gradient(0deg, rgba(93, 187, 118, 1) 0%, rgba(87, 175, 176, 1) 100%);
+  transition: .4s;
+  order: 1;
+}
+
+.mic-button-container:hover .m-button {
+  width: 80px;
+  height: 80px;
+}
+
+.mode-label-collapsed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #555;
+  max-width: 60px;
+  line-height: 1.2;
+  order: 3;
+  margin-top: 0.3rem;
+}
+
+.mic-button-container:hover .mode-label-collapsed {
+  display: none;
+}
+
+.m-button:active {
+  transform: scale(1.1);
+}
+
+.m-button.listening {
+  background: linear-gradient(0deg, rgba(231, 76, 60, 1) 0%, rgba(192, 57, 43, 1) 100%);
+  box-shadow: 0px 0px 60px 0px rgba(231, 76, 60, 0.5);
+}
+
+.m-button__icon {
+  position: absolute;
+  width: 30%;
+  height: 30%;
+  transition: 1s;
+  pointer-events: none;
+}
+
+.m-button:hover .m-button__icon {
+  transform: scale(1.1);
+}
+
+.m-button__layer {
+  border-radius: 50%;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(93, 187, 118, 0.3);
+  background: linear-gradient(90deg, rgba(93, 187, 118, 0.3) 0%, rgba(87, 175, 176, 0.3) 100%);
+  pointer-events: none;
+}
+
+.m-button.listening .m-button__layer {
+  background: rgba(231, 76, 60, 0.3);
+  background: linear-gradient(90deg, rgba(231, 76, 60, 0.3) 0%, rgba(192, 57, 43, 0.3) 100%);
+}
+
+.m-button__layer1 {
+  animation: layer1 8s infinite ease-in-out;
+}
+
+.m-button__layer2 {
+  animation: layer2 8s infinite ease-in-out;
+}
+
+.m-button__layer3 {
+  animation: layer3 8s infinite ease-in-out;
+}
+
+.m-button__layer4 {
+  animation: layer4 8s infinite ease-in-out;
+}
+
+@keyframes layer1 {
+  0% {
+    transform: rotate(0deg) scaleX(1.1);
+  }
+  50% {
+    transform: rotate(180deg) scaleX(1.1);
+  }
+  100% {
+    transform: rotate(360deg) scaleX(1.1);
+  }
+}
+
+@keyframes layer2 {
+  0% {
+    transform: rotate(30deg) scaleX(1.2);
+  }
+  50% {
+    transform: rotate(210deg) scaleX(1.2);
+  }
+  100% {
+    transform: rotate(390deg) scaleX(1.2);
+  }
+}
+
+@keyframes layer3 {
+  0% {
+    transform: rotate(60deg) scaleX(1.15);
+  }
+  50% {
+    transform: rotate(240deg) scaleX(1.15);
+  }
+  100% {
+    transform: rotate(420deg) scaleX(1.15);
+  }
+}
+
+@keyframes layer4 {
+  0% {
+    transform: rotate(90deg) scaleX(1.16);
+  }
+  50% {
+    transform: rotate(270deg) scaleX(1.16);
+  }
+  100% {
+    transform: rotate(450deg) scaleX(1.16);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .m-button {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .mic-button-container {
+    bottom: 30px;
+  }
+  
+  .voice-mode-selector-mic {
+    padding: 0.3rem;
+  }
+  
+  .mode-option-mic {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}

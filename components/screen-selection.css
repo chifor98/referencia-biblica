@@ -16,3 +16,30 @@
 .label-small { font-weight: bold; color: #4B382F; }
 .display-small { color: black; margin: 0; line-height: 1; border-bottom: 2px solid transparent; display: inline-block; transition: border-bottom 0.2s ease; }
 .small-display { background: rgba(255,255,255,0.85); color: #4b382f; padding: 6px 10px; border-radius: 6px; border: 1px solid rgba(180,150,100,0.35); min-width: 120px; text-align: left; font-weight: 600; }
+
+/* Botón de acceso a detección por voz */
+.voice-access-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    font-size: 1.3rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.voice-access-btn:hover {
+    background: linear-gradient(135deg, #764ba2, #667eea);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.voice-access-btn:active {
+    transform: translateY(0);
+}

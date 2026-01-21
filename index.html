@@ -8,6 +8,8 @@
     <!-- Component styles (split per-component) -->
     <link rel="stylesheet" href="components/screen-reading.css">
     <link rel="stylesheet" href="components/reading-sheet.css">
+    <link rel="stylesheet" href="components/screen-voice.css">
+    <link rel="stylesheet" href="components/mic-button.css">
         <!-- Optional nice serif display font; falls back to Georgia/serif if blocked -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,11 +30,13 @@
         <!-- Los contenedores quedan como placeholders; los templates se inyectan en runtime -->
         <div id="screen-selection" class="screen active"></div>
         <div id="screen-reading" class="screen"></div>
+        <div id="screen-voice" class="screen"></div>
     </div>
 
     <script src="script.js"></script>
     <!-- screen-specific scripts (depend on globals defined in script.js) -->
     <script src="components/screen-selection.js"></script>
     <script src="components/screen-reading.js"></script>
+    <script src="components/screen-voice.js"></script>
 </body>
 </html>

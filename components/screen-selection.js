@@ -169,7 +169,9 @@ function initializeSelectors() {
 }
 
 function _tryInitSelection() {
-    try { initializeSelectors(); } catch (e) { /* might run before template injection */ }
+    try { 
+        initializeSelectors();
+    } catch (e) { /* might run before template injection */ }
 }
 
 document.addEventListener('screens-injected', _tryInitSelection);
