@@ -5,7 +5,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 8000;
+const PORT = process.env.PORT || 8000;
 const MIME_TYPES = {
     '.html': 'text/html',
     '.css': 'text/css',
@@ -24,6 +24,24 @@ const AI_CONFIG = {
 };
 
 const server = http.createServer((req, res) => {
+    // CORS headers para permitir requests desde GitHub Pages
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+    }
+
+    // Health check endpoint
+    if (req.url === '/api/health' && req.method === 'GET') {
+        sendJSON(res, 200, { status: 'ok', provider: AI_CONFIG.provider });
+        return;
+    }
+
     // API endpoint para detección de referencias con IA
     if (req.url === '/api/detect-reference' && req.method === 'POST') {
         handleAIRequest(req, res);

@@ -586,7 +586,7 @@ async function analyzeTranscriptWithAI(transcript) {
     try {
         console.log('📤 Sending to AI:', transcript.substring(0, 100) + '...');
         
-        const response = await fetch('/api/analyze-verse', {
+        const response = await fetch(`${API_CONFIG.baseURL}/api/analyze-verse`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1919,7 +1919,7 @@ function queueAIRequest(transcript) {
     voiceState.activeRequests++;
 
     // Llamar al backend para procesar con IA
-    fetch('/api/detect-reference', {
+    fetch(`${API_CONFIG.baseURL}/api/detect-reference`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
