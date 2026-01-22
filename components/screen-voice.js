@@ -36,7 +36,8 @@ const voiceState = {
     aiMode: false, // true cuando está en modo Autorecunoaște cu IA
     aiTranscriptBuffer: '', // acumula transcript para análisis con IA
     aiLastAnalysis: null, // timestamp de último análisis con IA
-    aiAnalysisInterval: 5000 // analizar cada 5 segundos
+    aiAnalysisInterval: 5000, // analizar cada 5 segundos
+    aiJustDetected: false // flag para reducir umbral después de detección
 };
 
 // Nombres de libros de la Biblia en rumano (del bibleStructure)
@@ -565,9 +566,12 @@ function startAIAnalysisInterval() {
         const now = Date.now();
         const timeSinceLastAnalysis = now - (voiceState.aiLastAnalysis || 0);
         
+        // Umbral dinámico: más bajo después de una detección reciente
+        const minChars = voiceState.aiJustDetected ? 20 : 35;
+        
         // Analizar cada 5 segundos si hay suficiente texto
         if (timeSinceLastAnalysis >= voiceState.aiAnalysisInterval && 
-            voiceState.aiTranscriptBuffer.trim().length > 50) {
+            voiceState.aiTranscriptBuffer.trim().length > minChars) {
             
             console.log('🤖 Analyzing transcript with AI...');
             analyzeTranscriptWithAI(voiceState.aiTranscriptBuffer);
@@ -610,6 +614,13 @@ async function analyzeTranscriptWithAI(transcript) {
             
             // ✅ REINICIAR el buffer después de detectar un versículo
             voiceState.aiTranscriptBuffer = '';
+            voiceState.aiJustDetected = true;
+            
+            // Reset flag después de 10 segundos
+            setTimeout(() => {
+                voiceState.aiJustDetected = false;
+            }, 10000);
+            
             console.log('🔄 Buffer reiniciado después de detectar versículo');
         } else if (data.error) {
             console.log('🤖 AI Error:', data.error);
