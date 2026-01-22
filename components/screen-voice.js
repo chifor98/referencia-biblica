@@ -607,6 +607,10 @@ async function analyzeTranscriptWithAI(transcript) {
         if (data.success && data.reference) {
             console.log('🤖 AI detected verse:', data.reference);
             handleDetectedReference(data.reference, 'ai', transcript);
+            
+            // ✅ REINICIAR el buffer después de detectar un versículo
+            voiceState.aiTranscriptBuffer = '';
+            console.log('🔄 Buffer reiniciado después de detectar versículo');
         } else if (data.error) {
             console.log('🤖 AI Error:', data.error);
         } else {
