@@ -1,6 +1,6 @@
 body {
     /* Fundal ce imită pergamentul vechi */
-    background-image: url('URL_DE_TU_IMAGEN_DE_PERGAMINO'); /* Înlocuiește cu o URL/cale către o textură */
+    /* background-image: url('URL_DE_TU_IMAGEN_DE_PERGAMINO'); */ /* Înlocuiește cu o URL/cale către o textură */
     background-size: cover;
     background-position: center;
     background-attachment: fixed;

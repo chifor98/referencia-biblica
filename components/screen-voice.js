@@ -985,7 +985,7 @@ async function loadBibleFromXML() {
     
     try {
         // Descargar el archivo XML
-        const response = await fetch('/ron-rccv.usfx.xml');
+        const response = await fetch('./ron-rccv.usfx.xml');
         if (!response.ok) throw new Error('XML file not found');
         
         const xmlText = await response.text();
