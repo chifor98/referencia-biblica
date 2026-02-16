@@ -24,43 +24,74 @@ window.microphoneConfig = {
         suggestions: JSON.parse(localStorage.getItem('mic_ia_suggestions') || 'true')
     }
 };
+// Notify other modules about the loaded configuration on startup
+try {
+    window.dispatchEvent(new CustomEvent('microphoneConfigChanged', { detail: window.microphoneConfig }));
+} catch (e) {
+    console.warn('Could not dispatch initial microphoneConfigChanged event', e);
+}
 
 function initializeMicSettings() {
-    const settingsBtn = document.querySelector('.settings-btn');
-    const micSettingsModal = document.getElementById('micSettingsModal');
-    const closeMicBtn = document.querySelector('.mic-settings-close');
-    
-    if (!settingsBtn || !micSettingsModal) return;
+    // Make initialization resilient to templates injected later.
+    const tryBind = () => {
+        const settingsBtn = document.querySelector('.settings-btn');
+        const micSettingsModal = document.getElementById('micSettingsModal');
+        const closeMicBtn = document.querySelector('.mic-settings-close');
 
-    // Abrir modal al hacer clic en el engranaje
-    settingsBtn.addEventListener('click', () => {
-        micSettingsModal.classList.add('active');
-        // Cargar valores actuales
-        loadMicSettingsValues();
-    });
+        if (!micSettingsModal) return false;
 
-    // Cerrar modal
-    if (closeMicBtn) {
-        closeMicBtn.addEventListener('click', () => {
-            micSettingsModal.classList.remove('active');
+        // If button not present yet, return false so caller can retry later
+        if (!settingsBtn) return false;
+
+        // Avoid double-binding: check marker
+        if (settingsBtn.__micSettingsBound) return true;
+
+        // Abrir modal al hacer clic en el engranaje
+        settingsBtn.addEventListener('click', () => {
+            micSettingsModal.classList.add('active');
+            // Cargar valores actuales
+            loadMicSettingsValues();
         });
-    }
+        settingsBtn.__micSettingsBound = true;
 
-    // Cerrar al hacer clic fuera
-    micSettingsModal.addEventListener('click', (e) => {
-        if (e.target === micSettingsModal) {
-            micSettingsModal.classList.remove('active');
+        // Cerrar modal
+        if (closeMicBtn) {
+            closeMicBtn.addEventListener('click', () => {
+                micSettingsModal.classList.remove('active');
+            });
         }
-    });
 
-    // Inicializar pestañas
-    setupMicTabs();
-    
-    // Sincronizar sliders y inputs
-    syncMicSliderInputs();
-    
-    // Botones de acción
-    setupMicActionButtons();
+        // Cerrar al hacer clic fuera
+        micSettingsModal.addEventListener('click', (e) => {
+            if (e.target === micSettingsModal) {
+                micSettingsModal.classList.remove('active');
+            }
+        });
+
+        // Inicializar pestañas
+        setupMicTabs();
+
+        // Sincronizar sliders y inputs
+        syncMicSliderInputs();
+
+        // Botones de acción
+        setupMicActionButtons();
+
+    // Populate inputs immediately from saved config so UI reflects stored values
+    try { loadMicSettingsValues(); } catch (e) { /* ignore */ }
+
+        return true;
+    };
+
+    // Try immediately; if components/templates not yet injected, wait for the event
+    if (tryBind()) return;
+
+    // Listen once for templates injection and try again
+    const onInjected = () => {
+        tryBind();
+        document.removeEventListener('screens-injected', onInjected);
+    };
+    document.addEventListener('screens-injected', onInjected);
 }
 
 function setupMicTabs() {
@@ -145,69 +176,75 @@ function setupMicActionButtons() {
 }
 
 function loadMicSettingsValues() {
+    // Set values only if the corresponding elements exist in the DOM.
     // Autocite
-    document.querySelector('#autocite-speed').value = window.microphoneConfig.autocite.speed;
-    document.querySelector('#autocite-speed-val').value = window.microphoneConfig.autocite.speed;
-    document.querySelector('#autocite-delay').value = window.microphoneConfig.autocite.delay;
-    document.querySelector('#autocite-delay-val').value = window.microphoneConfig.autocite.delay;
-    document.querySelector('#autocite-highlight').checked = window.microphoneConfig.autocite.highlight;
-    document.querySelector('#autocite-loop').checked = window.microphoneConfig.autocite.loop;
+    const el = id => document.querySelector(id);
+    const setIf = (sel, fn) => { const e = el(sel); if (!e) return; try { fn(e); } catch (e) { /* ignore */ } };
+
+    setIf('#autocite-speed', (e) => e.value = window.microphoneConfig.autocite.speed);
+    setIf('#autocite-speed-val', (e) => e.value = window.microphoneConfig.autocite.speed);
+    setIf('#autocite-delay', (e) => e.value = window.microphoneConfig.autocite.delay);
+    setIf('#autocite-delay-val', (e) => e.value = window.microphoneConfig.autocite.delay);
+    setIf('#autocite-highlight', (e) => e.checked = !!window.microphoneConfig.autocite.highlight);
+    setIf('#autocite-loop', (e) => e.checked = !!window.microphoneConfig.autocite.loop);
 
     // Literal
-    document.querySelector('#literal-sameChapter').value = window.microphoneConfig.literal.sameChapter;
-    document.querySelector('#literal-sameChapter-val').value = window.microphoneConfig.literal.sameChapter;
-    document.querySelector('#literal-sameBook').value = window.microphoneConfig.literal.sameBook;
-    document.querySelector('#literal-sameBook-val').value = window.microphoneConfig.literal.sameBook;
-    document.querySelector('#literal-otherBook').value = window.microphoneConfig.literal.otherBook;
-    document.querySelector('#literal-otherBook-val').value = window.microphoneConfig.literal.otherBook;
-    document.querySelector('#literal-caseSensitive').checked = window.microphoneConfig.literal.caseSensitive;
+    setIf('#literal-sameChapter', (e) => e.value = window.microphoneConfig.literal.sameChapter);
+    setIf('#literal-sameChapter-val', (e) => e.value = window.microphoneConfig.literal.sameChapter);
+    setIf('#literal-sameBook', (e) => e.value = window.microphoneConfig.literal.sameBook);
+    setIf('#literal-sameBook-val', (e) => e.value = window.microphoneConfig.literal.sameBook);
+    setIf('#literal-otherBook', (e) => e.value = window.microphoneConfig.literal.otherBook);
+    setIf('#literal-otherBook-val', (e) => e.value = window.microphoneConfig.literal.otherBook);
+    setIf('#literal-caseSensitive', (e) => e.checked = !!window.microphoneConfig.literal.caseSensitive);
 
     // IA
-    document.querySelector('#ia-confidence').value = window.microphoneConfig.ia.confidence;
-    document.querySelector('#ia-confidence-val').value = window.microphoneConfig.ia.confidence;
-    document.querySelector('#ia-model').value = window.microphoneConfig.ia.model;
-    document.querySelector('#ia-timeout').value = window.microphoneConfig.ia.timeout;
-    document.querySelector('#ia-timeout-val').value = window.microphoneConfig.ia.timeout;
-    document.querySelector('#ia-contextual').checked = window.microphoneConfig.ia.contextual;
-    document.querySelector('#ia-suggestions').checked = window.microphoneConfig.ia.suggestions;
+    setIf('#ia-confidence', (e) => e.value = window.microphoneConfig.ia.confidence);
+    setIf('#ia-confidence-val', (e) => e.value = window.microphoneConfig.ia.confidence);
+    setIf('#ia-model', (e) => e.value = window.microphoneConfig.ia.model);
+    setIf('#ia-timeout', (e) => e.value = window.microphoneConfig.ia.timeout);
+    setIf('#ia-timeout-val', (e) => e.value = window.microphoneConfig.ia.timeout);
+    setIf('#ia-contextual', (e) => e.checked = !!window.microphoneConfig.ia.contextual);
+    setIf('#ia-suggestions', (e) => e.checked = !!window.microphoneConfig.ia.suggestions);
 }
 
 function resetMicSettingsToDefaults() {
     // Autocite defaults
-    document.querySelector('#autocite-speed').value = 1;
-    document.querySelector('#autocite-speed-val').value = 1;
-    document.querySelector('#autocite-delay').value = 500;
-    document.querySelector('#autocite-delay-val').value = 500;
-    document.querySelector('#autocite-highlight').checked = true;
-    document.querySelector('#autocite-loop').checked = true;
+    const setIf = (sel, fn) => { const e = document.querySelector(sel); if (!e) return; try { fn(e); } catch (e) {} };
+    setIf('#autocite-speed', (e) => e.value = 1);
+    setIf('#autocite-speed-val', (e) => e.value = 1);
+    setIf('#autocite-delay', (e) => e.value = 500);
+    setIf('#autocite-delay-val', (e) => e.value = 500);
+    setIf('#autocite-highlight', (e) => e.checked = true);
+    setIf('#autocite-loop', (e) => e.checked = true);
 
     // Literal defaults
-    document.querySelector('#literal-sameChapter').value = 5;
-    document.querySelector('#literal-sameChapter-val').value = 5;
-    document.querySelector('#literal-sameBook').value = 35;
-    document.querySelector('#literal-sameBook-val').value = 35;
-    document.querySelector('#literal-otherBook').value = 89;
-    document.querySelector('#literal-otherBook-val').value = 89;
-    document.querySelector('#literal-caseSensitive').checked = false;
+    setIf('#literal-sameChapter', (e) => e.value = 5);
+    setIf('#literal-sameChapter-val', (e) => e.value = 5);
+    setIf('#literal-sameBook', (e) => e.value = 35);
+    setIf('#literal-sameBook-val', (e) => e.value = 35);
+    setIf('#literal-otherBook', (e) => e.value = 89);
+    setIf('#literal-otherBook-val', (e) => e.value = 89);
+    setIf('#literal-caseSensitive', (e) => e.checked = false);
 
     // IA defaults
-    document.querySelector('#ia-confidence').value = 70;
-    document.querySelector('#ia-confidence-val').value = 70;
-    document.querySelector('#ia-model').value = 'groq';
-    document.querySelector('#ia-timeout').value = 30;
-    document.querySelector('#ia-timeout-val').value = 30;
-    document.querySelector('#ia-contextual').checked = true;
-    document.querySelector('#ia-suggestions').checked = true;
+    setIf('#ia-confidence', (e) => e.value = 70);
+    setIf('#ia-confidence-val', (e) => e.value = 70);
+    setIf('#ia-model', (e) => e.value = 'groq');
+    setIf('#ia-timeout', (e) => e.value = 30);
+    setIf('#ia-timeout-val', (e) => e.value = 30);
+    setIf('#ia-contextual', (e) => e.checked = true);
+    setIf('#ia-suggestions', (e) => e.checked = true);
 
     showMicNotification('Configurația a fost restituită la valorile implicite');
 }
 
 function saveMicSettings() {
     // Guardar Autocite
-    window.microphoneConfig.autocite.speed = parseFloat(document.querySelector('#autocite-speed-val').value);
-    window.microphoneConfig.autocite.delay = parseInt(document.querySelector('#autocite-delay-val').value);
-    window.microphoneConfig.autocite.highlight = document.querySelector('#autocite-highlight').checked;
-    window.microphoneConfig.autocite.loop = document.querySelector('#autocite-loop').checked;
+    const q = sel => document.querySelector(sel);
+    window.microphoneConfig.autocite.speed = parseFloat((q('#autocite-speed-val') && q('#autocite-speed-val').value) || window.microphoneConfig.autocite.speed);
+    window.microphoneConfig.autocite.delay = parseInt((q('#autocite-delay-val') && q('#autocite-delay-val').value) || window.microphoneConfig.autocite.delay);
+    window.microphoneConfig.autocite.highlight = !!(q('#autocite-highlight') && q('#autocite-highlight').checked);
+    window.microphoneConfig.autocite.loop = !!(q('#autocite-loop') && q('#autocite-loop').checked);
 
     localStorage.setItem('mic_autocite_speed', window.microphoneConfig.autocite.speed);
     localStorage.setItem('mic_autocite_delay', window.microphoneConfig.autocite.delay);
@@ -215,10 +252,10 @@ function saveMicSettings() {
     localStorage.setItem('mic_autocite_loop', window.microphoneConfig.autocite.loop);
 
     // Guardar Literal
-    window.microphoneConfig.literal.sameChapter = parseInt(document.querySelector('#literal-sameChapter-val').value);
-    window.microphoneConfig.literal.sameBook = parseInt(document.querySelector('#literal-sameBook-val').value);
-    window.microphoneConfig.literal.otherBook = parseInt(document.querySelector('#literal-otherBook-val').value);
-    window.microphoneConfig.literal.caseSensitive = document.querySelector('#literal-caseSensitive').checked;
+    window.microphoneConfig.literal.sameChapter = parseInt((q('#literal-sameChapter-val') && q('#literal-sameChapter-val').value) || window.microphoneConfig.literal.sameChapter);
+    window.microphoneConfig.literal.sameBook = parseInt((q('#literal-sameBook-val') && q('#literal-sameBook-val').value) || window.microphoneConfig.literal.sameBook);
+    window.microphoneConfig.literal.otherBook = parseInt((q('#literal-otherBook-val') && q('#literal-otherBook-val').value) || window.microphoneConfig.literal.otherBook);
+    window.microphoneConfig.literal.caseSensitive = !!(q('#literal-caseSensitive') && q('#literal-caseSensitive').checked);
 
     localStorage.setItem('mic_literal_sameChapter', window.microphoneConfig.literal.sameChapter);
     localStorage.setItem('mic_literal_sameBook', window.microphoneConfig.literal.sameBook);
@@ -226,11 +263,11 @@ function saveMicSettings() {
     localStorage.setItem('mic_literal_caseSensitive', window.microphoneConfig.literal.caseSensitive);
 
     // Guardar IA
-    window.microphoneConfig.ia.confidence = parseInt(document.querySelector('#ia-confidence-val').value);
-    window.microphoneConfig.ia.model = document.querySelector('#ia-model').value;
-    window.microphoneConfig.ia.timeout = parseInt(document.querySelector('#ia-timeout-val').value);
-    window.microphoneConfig.ia.contextual = document.querySelector('#ia-contextual').checked;
-    window.microphoneConfig.ia.suggestions = document.querySelector('#ia-suggestions').checked;
+    window.microphoneConfig.ia.confidence = parseInt((q('#ia-confidence-val') && q('#ia-confidence-val').value) || window.microphoneConfig.ia.confidence);
+    window.microphoneConfig.ia.model = (q('#ia-model') && q('#ia-model').value) || window.microphoneConfig.ia.model;
+    window.microphoneConfig.ia.timeout = parseInt((q('#ia-timeout-val') && q('#ia-timeout-val').value) || window.microphoneConfig.ia.timeout);
+    window.microphoneConfig.ia.contextual = !!(q('#ia-contextual') && q('#ia-contextual').checked);
+    window.microphoneConfig.ia.suggestions = !!(q('#ia-suggestions') && q('#ia-suggestions').checked);
 
     localStorage.setItem('mic_ia_confidence', window.microphoneConfig.ia.confidence);
     localStorage.setItem('mic_ia_model', window.microphoneConfig.ia.model);

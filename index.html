@@ -31,9 +31,7 @@
                 <button class="menu-btn active" data-screen="home-cover">Acasă</button>
                 <button class="menu-btn" data-screen="screen-selection">Referință</button>
             </nav>
-            <button class="settings-btn" title="Configurare Microfon" aria-label="Configurare">
-                <span class="gear-icon">⚙️</span>
-            </button>
+            <!-- settings button moved into the mic component to avoid confusion -->
         </div>
     </header>
 
@@ -45,6 +43,12 @@
         <div id="screen-reading" class="screen"></div>
         <div id="screen-voice" class="screen"></div>
     </div>
+
+    <footer class="site-footer" role="contentinfo">
+        <div class="footer-content">
+            <small>© Biserica Betel Bilbao</small>
+        </div>
+    </footer>
 
     <!-- Modals -->
     <div id="micSettingsModal" class="mic-settings-modal"></div>

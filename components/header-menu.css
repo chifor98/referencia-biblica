@@ -1,9 +1,8 @@
 /* Site header (church name) - top, fixed */
 .site-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+    /* Keep header in the document flow so the body grid can size main/footer correctly */
+    position: relative;
+    grid-area: header;
     z-index: 1200;
     background: rgba(255, 248, 238, 0.95);
     border-bottom: 2px solid rgba(200, 160, 110, 0.3);

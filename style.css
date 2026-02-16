@@ -10,29 +10,50 @@ body {
     min-height: 100vh;
     margin: 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
+    /* Use a top-level grid so header, main and footer are explicit areas
+       each screen lives inside the main area and will not overlap the header. */
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+        "header"
+        "main"
+        "footer";
+    height: 100vh;
+}
+
+/* Footer area participates in grid so it sits at the bottom naturally */
+.site-footer {
+    grid-area: footer;
+    background: rgba(255,248,238,0.9);
+    border-top: 1px solid rgba(200,160,110,0.2);
 }
 
 #container {
-    flex: 1;
+    grid-area: main;
     width: 100%;
-    display: flex;
+    /* let the screens control their own layout inside the main area */
+    display: block;
     position: relative;
-    margin-top: 70px;
+    margin: 0;
+    min-height: 0;
+    height: 100%; /* ensure the container fills the grid row */
 }
 
 .screen {
     display: none;
     width: 100%;
-    height: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
+    /* let the screen participate in the normal flow of the grid/main area */
+    position: relative;
+    box-sizing: border-box;
+    min-height: 0; /* important for flex/grid children to allow inner scrolling */
 }
 
 .screen.active {
     display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    height: 100%; /* fill the container's available height */
 }
 
 /* ===== PANTALLA 1: SELECCIÓN ===== */

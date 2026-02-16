@@ -596,7 +596,16 @@ function displayVerse(data, book, chapter, verse, statusEl, textEl) {
     // Mantener el tamaño máximo (5rem) si cabe; reducir proporcionalmente hasta un mínimo.
     try {
         // preferimos usar el id si existe
-        if (typeof fitVerseFontSize === 'function') fitVerseFontSize();
+        if (typeof fitVerseFontSize === 'function') {
+            // run immediately and also after a short delay (font load / rendering)
+            fitVerseFontSize();
+            // micro-task + a small timeout to handle webfont late layout
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    try { fitVerseFontSize(); } catch (e) { /* ignore */ }
+                }, 60);
+            });
+        }
     } catch (e) {
         console.warn('fitVerseFontSize failed:', e);
     }
@@ -813,19 +822,30 @@ function fitVerseFontSize(options = {}) {
 
     const rootFont = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     const maxRem = (options.maxRem != null) ? options.maxRem : 5; // default 5rem
-    const minPx = (options.minPx != null) ? options.minPx : Math.max(14, 0.875 * rootFont);
+    const preferedMinPx = (options.minPx != null) ? options.minPx : Math.max(12, 0.75 * rootFont);
+    const absoluteMinPx = (options.absoluteMinPx != null) ? options.absoluteMinPx : 10; // really small fallback
     const maxPx = maxRem * rootFont;
 
-    // calcular ancho/alto disponibles dentro del contenedor (restando padding y siblings normales)
+    // calcular ancho/alto disponibles: intentar asegurar que quepa en el viewport
     const containerStyle = getComputedStyle(container);
     const padTop = parseFloat(containerStyle.paddingTop) || 0;
     const padBottom = parseFloat(containerStyle.paddingBottom) || 0;
     const padLeft = parseFloat(containerStyle.paddingLeft) || 0;
     const padRight = parseFloat(containerStyle.paddingRight) || 0;
 
+    // start with container's inner size
     let availableHeight = container.clientHeight - padTop - padBottom;
     let availableWidth = container.clientWidth - padLeft - padRight;
 
+    // also calculate how much vertical space exists in the viewport from container top to bottom
+    const rect = container.getBoundingClientRect();
+    const viewportAvailableBelow = window.innerHeight - Math.max(0, rect.top) - padBottom - 8; // small margin
+    // prefer the smaller of the two to avoid page scrollbar
+    if (!isNaN(viewportAvailableBelow) && viewportAvailableBelow > 0) {
+        availableHeight = Math.min(availableHeight, viewportAvailableBelow);
+    }
+
+    // subtract heights of sibling non-overlay children inside container (e.g. reference row)
     Array.from(container.children).forEach((ch) => {
         if (ch === textEl) return;
         const style = getComputedStyle(ch);
@@ -838,31 +858,34 @@ function fitVerseFontSize(options = {}) {
     if (availableWidth <= 40) availableWidth = Math.max(100, container.clientWidth - 32);
 
     // asegurar box-sizing y ancho fijo para mediciones
+    const prevBox = textEl.style.boxSizing;
+    const prevWidth = textEl.style.width;
     textEl.style.boxSizing = 'border-box';
     const measuredWidth = Math.max(20, Math.floor(availableWidth));
     textEl.style.width = measuredWidth + 'px';
 
-    // Binary search entre minPx y maxPx para el mayor tamaño que quepa (considerando ancho y alto)
-    let low = Math.round(minPx);
+    // Binary search entre absoluteMinPx y maxPx para el mayor tamaño que quepa (considerando ancho y alto)
+    let low = Math.round(absoluteMinPx);
     let high = Math.round(maxPx);
     let best = low;
 
-    // Si con el tamaño máximo ya cabe, usamos maxPx
+    // Quick check: if max fits, use it
     textEl.style.fontSize = high + 'px';
-    // forzar reflow
+    // force reflow
     // eslint-disable-next-line no-unused-expressions
     textEl.offsetHeight;
     if (textEl.scrollHeight <= availableHeight && textEl.scrollWidth <= measuredWidth + 1) {
         textEl.style.fontSize = high + 'px';
-        textEl.style.width = '';
+        textEl.style.width = prevWidth || '';
+        textEl.style.boxSizing = prevBox || '';
         return;
     }
 
-    // búsqueda binaria con límite de iteraciones
-    for (let i = 0; i < 12 && low <= high; i += 1) {
+    // binary search but bias toward larger sizes; allow a small number of iterations
+    for (let i = 0; i < 16 && low <= high; i += 1) {
         const mid = Math.floor((low + high) / 2);
         textEl.style.fontSize = mid + 'px';
-        // forzar reflow
+        // force reflow
         // eslint-disable-next-line no-unused-expressions
         textEl.offsetHeight;
 
@@ -871,17 +894,46 @@ function fitVerseFontSize(options = {}) {
 
         if (fitsVert && fitsHorz) {
             best = mid;
-            low = mid + 1; // intentar mayor
+            low = mid + 1; // try larger
         } else {
-            high = mid - 1; // reducir
+            high = mid - 1; // reduce
         }
     }
 
-    // aplicar el mejor encontrado (o el mínimo)
-    const finalSize = Math.max(minPx, best);
-    // aplicar tamaño final y asegurar que el ancho sea 100% del contenedor
+    let finalSize = Math.max(preferedMinPx, best);
+
+    // If even preferedMinPx doesn't fit, try decreasing below preferedMinPx down to absoluteMinPx
     textEl.style.fontSize = finalSize + 'px';
-    textEl.style.width = '';
+    // eslint-disable-next-line no-unused-expressions
+    textEl.offsetHeight;
+    if (textEl.scrollHeight > availableHeight) {
+        // linearly step down to absoluteMinPx to try to make it fit
+        for (let s = finalSize - 1; s >= absoluteMinPx; s -= 1) {
+            textEl.style.fontSize = s + 'px';
+            // eslint-disable-next-line no-unused-expressions
+            textEl.offsetHeight;
+            if (textEl.scrollHeight <= availableHeight) {
+                finalSize = s;
+                break;
+            }
+        }
+    }
+
+    // apply final
+    textEl.style.fontSize = finalSize + 'px';
+    // restore width/box if needed (let it naturally fill)
+    textEl.style.width = prevWidth || '';
+    textEl.style.boxSizing = prevBox || '';
+
+    // As a last resort, if text still doesn't fit, ensure no page scrollbar by reducing body overflow
+    // but only if we've already reduced to the absolute min; otherwise prefer smaller font.
+    if (textEl.scrollHeight > availableHeight && finalSize <= absoluteMinPx) {
+        try {
+            document.documentElement.style.overflowY = 'hidden';
+        } catch (e) { /* ignore */ }
+    } else {
+        try { document.documentElement.style.overflowY = ''; } catch (e) { /* ignore */ }
+    }
 }
 
 // debounce simple para resize
