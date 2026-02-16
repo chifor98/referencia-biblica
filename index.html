@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="components/reading-sheet.css">
     <link rel="stylesheet" href="components/screen-voice.css">
     <link rel="stylesheet" href="components/mic-button.css">
+    <link rel="stylesheet" href="components/home-cover.css">
+    <link rel="stylesheet" href="components/mic-settings.css">
+    <link rel="stylesheet" href="components/header-menu.css">
         <!-- Optional nice serif display font; falls back to Georgia/serif if blocked -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,20 +25,36 @@
 <body>
 
     <header class="site-header" role="banner">
-        <h1 class="site-title">Biserica Betel Bilbao</h1>
+        <div class="header-content">
+            <h1 class="site-title">Biserica Betel Bilbao</h1>
+            <nav class="menu-bar">
+                <button class="menu-btn active" data-screen="home-cover">Acasă</button>
+                <button class="menu-btn" data-screen="screen-selection">Referință</button>
+            </nav>
+            <button class="settings-btn" title="Configurare Microfon" aria-label="Configurare">
+                <span class="gear-icon">⚙️</span>
+            </button>
+        </div>
     </header>
 
     <div id="container">
         <!-- PANTALLAS: cargadas desde componentes en /components -->
         <!-- Los contenedores quedan como placeholders; los templates se inyectan en runtime -->
-        <div id="screen-selection" class="screen active"></div>
+        <div id="home-cover" class="screen active"></div>
+        <div id="screen-selection" class="screen"></div>
         <div id="screen-reading" class="screen"></div>
         <div id="screen-voice" class="screen"></div>
     </div>
 
+    <!-- Modals -->
+    <div id="micSettingsModal" class="mic-settings-modal"></div>
+
     <script src="config.js"></script>
     <script src="script.js"></script>
     <!-- screen-specific scripts (depend on globals defined in script.js) -->
+    <script src="components/home-cover.js"></script>
+    <script src="components/mic-settings.js"></script>
+    <script src="components/header-menu.js"></script>
     <script src="components/screen-selection.js"></script>
     <script src="components/screen-reading.js"></script>
     <script src="components/screen-voice.js"></script>

@@ -1,0 +1,324 @@
+/* Site header (church name) - top, fixed */
+.site-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1200;
+    background: rgba(255, 248, 238, 0.95);
+    border-bottom: 2px solid rgba(200, 160, 110, 0.3);
+    padding: 12px 20px;
+    box-sizing: border-box;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 100%;
+    gap: 30px;
+}
+
+.site-title {
+    margin: 0;
+    padding: 0;
+    /* use a curvy, decorative script for a logo-like header, fall back to Playfair/serif */
+    font-family: 'Great Vibes', 'Playfair Display', Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+    color: #5b3720; /* rich brown */
+    font-size: clamp(1.4rem, 3vw + 0.2rem, 2.2rem);
+    line-height: 1;
+    letter-spacing: 0.4px;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.22);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Menu bar */
+.menu-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-grow: 1;
+    padding-left: 30px;
+    border-left: 2px solid rgba(200, 160, 110, 0.3);
+}
+
+.menu-btn {
+    padding: 10px 24px;
+    background-color: rgba(240, 220, 180, 0.6);
+    border: 1px solid rgba(200, 160, 110, 0.4);
+    border-radius: 6px;
+    color: #5b3720;
+    font-family: serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.menu-btn:hover {
+    background-color: rgba(240, 220, 180, 0.8);
+    border-color: rgba(200, 160, 110, 0.6);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.menu-btn.active {
+    background-color: rgba(200, 160, 110, 0.8);
+    color: #ffffff;
+    border-color: rgba(150, 110, 60, 0.8);
+    font-weight: 600;
+}
+
+/* Settings button */
+.settings-btn {
+    padding: 8px 12px;
+    background-color: transparent;
+    border: 1px solid rgba(200, 160, 110, 0.4);
+    border-radius: 6px;
+    color: #5b3720;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.settings-btn:hover {
+    background-color: rgba(240, 220, 180, 0.6);
+    border-color: rgba(200, 160, 110, 0.6);
+    transform: rotate(15deg);
+}
+
+.settings-btn:active {
+    transform: rotate(15deg) scale(0.95);
+}
+
+.gear-icon {
+    display: inline-block;
+}
+
+/* Settings Modal */
+.settings-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+
+.settings-modal.active {
+    display: flex;
+}
+
+.settings-content {
+    background-color: rgba(255, 248, 238, 0.98);
+    border: 2px solid rgba(200, 160, 110, 0.5);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px;
+    border-bottom: 2px solid rgba(200, 160, 110, 0.3);
+}
+
+.settings-header h2 {
+    margin: 0;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 20px;
+    color: #5b3720;
+    font-weight: 600;
+}
+
+.close-settings {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: #5b3720;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    line-height: 1;
+}
+
+.close-settings:hover {
+    color: #8b3a1f;
+    transform: scale(1.2);
+}
+
+.settings-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.setting-group label {
+    font-family: serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: #5b3720;
+}
+
+.input-group {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.slider {
+    flex: 1;
+    height: 8px;
+    border-radius: 5px;
+    background: linear-gradient(to right, rgba(200, 160, 110, 0.2), rgba(200, 160, 110, 0.5));
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: #8b6f47;
+    cursor: pointer;
+    border: 2px solid #5b3720;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-webkit-slider-thumb:hover {
+    background-color: #a0845a;
+    transform: scale(1.15);
+}
+
+.slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: #8b6f47;
+    cursor: pointer;
+    border: 2px solid #5b3720;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-moz-range-thumb:hover {
+    background-color: #a0845a;
+    transform: scale(1.15);
+}
+
+.number-input {
+    width: 70px;
+    padding: 8px 12px;
+    border: 1px solid rgba(200, 160, 110, 0.4);
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 14px;
+    text-align: center;
+    color: #5b3720;
+    background-color: rgba(255, 255, 255, 0.5);
+    transition: all 0.2s ease;
+}
+
+.number-input:focus {
+    outline: none;
+    border-color: rgba(200, 160, 110, 0.8);
+    background-color: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 8px rgba(200, 160, 110, 0.3);
+}
+
+.unit {
+    font-family: serif;
+    font-weight: 500;
+    color: #5b3720;
+    min-width: 20px;
+}
+
+.settings-footer {
+    display: flex;
+    gap: 12px;
+    padding: 20px 24px;
+    border-top: 2px solid rgba(200, 160, 110, 0.3);
+    justify-content: flex-end;
+}
+
+.btn-reset, .btn-save {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-family: serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-reset {
+    background-color: rgba(200, 160, 110, 0.3);
+    color: #5b3720;
+    border: 1px solid rgba(200, 160, 110, 0.5);
+}
+
+.btn-reset:hover {
+    background-color: rgba(200, 160, 110, 0.5);
+    border-color: rgba(200, 160, 110, 0.7);
+}
+
+.btn-save {
+    background-color: rgba(200, 160, 110, 0.8);
+    color: #ffffff;
+    border: 1px solid rgba(150, 110, 60, 0.8);
+}
+
+.btn-save:hover {
+    background-color: rgba(180, 140, 90, 0.9);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}

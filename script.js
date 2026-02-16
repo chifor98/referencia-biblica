@@ -1030,6 +1030,7 @@ async function loadScreenTemplates() {
         const base = 'components';
         const names = [
             'screen-selection.html', 'screen-reading.html', 'screen-voice.html',
+            'home-cover.html', 'mic-settings.html',
             'selection-left.html', 'selection-nav.html',
             'reading-left.html', 'reading-sheet.html', 'reading-nav.html',
             'mic-button.html'
@@ -1056,6 +1057,8 @@ function applyScreenTemplates() {
     try {
         const selTpl = _screenTemplates['screen-selection-template'];
         const readTpl = _screenTemplates['screen-reading-template'];
+        const userHomeCoverTpl = _screenTemplates['home-cover-template'];
+        const userMicSettingsTpl = _screenTemplates['mic-settings-template'];
 
         // Replace the placeholder elements with the template root nodes
         if (selTpl) {
@@ -1078,6 +1081,36 @@ function applyScreenTemplates() {
             const container = document.getElementById('screen-reading');
             if (container && container.parentNode) {
                 const clone = readTpl.content.cloneNode(true);
+                const newNode = clone.firstElementChild || clone.firstChild;
+                if (newNode) {
+                    container.parentNode.replaceChild(newNode, container);
+                } else {
+                    container.innerHTML = '';
+                    container.appendChild(clone);
+                }
+            }
+        }
+
+        // Inject home-cover
+        if (userHomeCoverTpl) {
+            const container = document.getElementById('home-cover');
+            if (container && container.parentNode) {
+                const clone = userHomeCoverTpl.content.cloneNode(true);
+                const newNode = clone.firstElementChild || clone.firstChild;
+                if (newNode) {
+                    container.parentNode.replaceChild(newNode, container);
+                } else {
+                    container.innerHTML = '';
+                    container.appendChild(clone);
+                }
+            }
+        }
+
+        // Inject mic-settings
+        if (userMicSettingsTpl) {
+            const container = document.getElementById('micSettingsModal');
+            if (container && container.parentNode) {
+                const clone = userMicSettingsTpl.content.cloneNode(true);
                 const newNode = clone.firstElementChild || clone.firstChild;
                 if (newNode) {
                     container.parentNode.replaceChild(newNode, container);

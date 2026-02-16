@@ -9,13 +9,17 @@ body {
     color: #4B382F; /* Ton maro închis pentru text (precum cerneala) */
     min-height: 100vh;
     margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 #container {
+    flex: 1;
     width: 100%;
-    height: 100vh;
     display: flex;
     position: relative;
+    margin-top: 70px;
 }
 
 .screen {
@@ -36,7 +40,7 @@ body {
     justify-content: center;
     align-items: center;
     padding: 40px;
-    background-color: rgba(240, 220, 180, 0.85);
+    background: linear-gradient(135deg, rgba(240, 220, 180, 0.95) 0%, rgba(255, 248, 238, 0.98) 100%);
     box-sizing: border-box;
 }
 
@@ -47,7 +51,7 @@ body {
 
 /* ===== PANTALLA 2: LECTURA ===== */
 #screen-reading {
-    background-color: rgba(240, 220, 180, 0.9);
+    background: linear-gradient(135deg, rgba(240, 220, 180, 0.95) 0%, rgba(255, 248, 238, 0.98) 100%);
     box-sizing: border-box;
 }
 
@@ -619,28 +623,4 @@ body {
     height: 100%;
     box-sizing: border-box;
     overflow: auto; /* scroll inside the verse area */
-}
-
-/* Site header (church name) - top-left, prominent */
-.site-header {
-    position: absolute;
-    top: 18px;
-    left: 18px;
-    z-index: 1200;
-    pointer-events: none; /* allow clicks through header unless specifically on the title */
-}
-.site-title {
-    margin: 0;
-    padding: 6px 12px;
-    /* use a curvy, decorative script for a logo-like header, fall back to Playfair/serif */
-    font-family: 'Great Vibes', 'Playfair Display', Georgia, 'Times New Roman', serif;
-    font-weight: 400;
-    color: #5b3720; /* rich brown */
-    font-size: clamp(1.6rem, 4.2vw + 0.4rem, 3.2rem);
-    line-height: 1;
-    letter-spacing: 0.4px;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.22);
-    background: rgba(255, 248, 238, 0.62); /* subtle warm background for legibility */
-    border-radius: 6px;
-    pointer-events: auto; /* allow interactions if needed */
 }

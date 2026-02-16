@@ -1,0 +1,155 @@
+<!-- Component: Mic Settings Modal -->
+<template id="mic-settings-template">
+<!-- Modal de Configurație Microfon -->
+<div id="micSettingsModal" class="mic-settings-modal">
+    <div class="mic-settings-content">
+        <div class="mic-settings-header">
+            <h2>Configurare Microfon</h2>
+            <button class="mic-settings-close">&times;</button>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="mic-settings-tabs">
+            <button class="mic-tab-btn active" data-tab="autocite">Autocitire</button>
+            <button class="mic-tab-btn" data-tab="literal">Recunoaștere Literală</button>
+            <button class="mic-tab-btn" data-tab="ia">Recunoaștere cu IA</button>
+        </div>
+
+        <div class="mic-settings-body">
+            <!-- Tab 1: Autocitire -->
+            <div class="mic-tab-content active" id="tab-autocite">
+                <h3>Parametri Autocitire</h3>
+                <p class="tab-description">Configurați parametrii pentru modul de autocitire (citire automată).</p>
+                
+                <div class="setting-group">
+                    <label for="autocite-speed">Viteza Citire</label>
+                    <div class="input-group">
+                        <input type="range" id="autocite-speed" min="0.5" max="2" step="0.1" value="1" class="slider">
+                        <input type="number" id="autocite-speed-val" min="0.5" max="2" step="0.1" value="1" class="number-input">
+                        <span class="unit">x</span>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label for="autocite-delay">Pauza între Versete (ms)</label>
+                    <div class="input-group">
+                        <input type="range" id="autocite-delay" min="0" max="5000" step="100" value="500" class="slider">
+                        <input type="number" id="autocite-delay-val" min="0" max="5000" step="100" value="500" class="number-input">
+                        <span class="unit">ms</span>
+                    </div>
+                </div>
+
+                <div class="setting-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="autocite-highlight" checked>
+                        <span>Evidențiază Textul în Timp Real</span>
+                    </label>
+                </div>
+
+                <div class="setting-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="autocite-loop" checked>
+                        <span>Repetare la Sfârșit</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Tab 2: Recunoaștere Literală -->
+            <div class="mic-tab-content" id="tab-literal">
+                <h3>Parametri Recunoaștere Literală</h3>
+                <p class="tab-description">Configurați pragurile de potrivire pentru căutarea literală de versete.</p>
+                
+                <div class="setting-group">
+                    <label for="literal-sameChapter">Același Capitol (%)</label>
+                    <div class="input-group">
+                        <input type="range" id="literal-sameChapter" min="0" max="100" value="5" class="slider">
+                        <input type="number" id="literal-sameChapter-val" min="0" max="100" value="5" class="number-input">
+                        <span class="unit">%</span>
+                    </div>
+                    <small>Pragul minim de potrivire pentru versete în același capitol</small>
+                </div>
+
+                <div class="setting-group">
+                    <label for="literal-sameBook">Aceeași Carte (%)</label>
+                    <div class="input-group">
+                        <input type="range" id="literal-sameBook" min="0" max="100" value="35" class="slider">
+                        <input type="number" id="literal-sameBook-val" min="0" max="100" value="35" class="number-input">
+                        <span class="unit">%</span>
+                    </div>
+                    <small>Pragul minim de potrivire pentru versete în aceeași carte</small>
+                </div>
+
+                <div class="setting-group">
+                    <label for="literal-otherBook">Alt Carte (%)</label>
+                    <div class="input-group">
+                        <input type="range" id="literal-otherBook" min="0" max="100" value="89" class="slider">
+                        <input type="number" id="literal-otherBook-val" min="0" max="100" value="89" class="number-input">
+                        <span class="unit">%</span>
+                    </div>
+                    <small>Pragul minim de potrivire pentru versete din alte cărți</small>
+                </div>
+
+                <div class="setting-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="literal-caseSensitive">
+                        <span>Sensibil la Majuscule/Minuscule</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Tab 3: Recunoaștere cu IA -->
+            <div class="mic-tab-content" id="tab-ia">
+                <h3>Parametri Recunoaștere cu IA</h3>
+                <p class="tab-description">Configurați parametrii pentru modelul de IA în recunoașterea vocală.</p>
+                
+                <div class="setting-group">
+                    <label for="ia-confidence">Nivelul de Încredere Minim (%)</label>
+                    <div class="input-group">
+                        <input type="range" id="ia-confidence" min="0" max="100" value="70" class="slider">
+                        <input type="number" id="ia-confidence-val" min="0" max="100" value="70" class="number-input">
+                        <span class="unit">%</span>
+                    </div>
+                    <small>Acceptă doar rezultate cu încredere mai mare decât acest prag</small>
+                </div>
+
+                <div class="setting-group">
+                    <label for="ia-model">Model IA</label>
+                    <select id="ia-model" class="model-select">
+                        <option value="groq">Groq (Rapid)</option>
+                        <option value="gemini">Google Gemini</option>
+                        <option value="openai">OpenAI GPT</option>
+                    </select>
+                </div>
+
+                <div class="setting-group">
+                    <label for="ia-timeout">Timeout Procesare (s)</label>
+                    <div class="input-group">
+                        <input type="range" id="ia-timeout" min="5" max="60" step="5" value="30" class="slider">
+                        <input type="number" id="ia-timeout-val" min="5" max="60" step="5" value="30" class="number-input">
+                        <span class="unit">s</span>
+                    </div>
+                </div>
+
+                <div class="setting-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="ia-contextual" checked>
+                        <span>Utilizare Context Biblic</span>
+                    </label>
+                </div>
+
+                <div class="setting-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="ia-suggestions" checked>
+                        <span>Arată Sugestii Alternative</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="mic-settings-footer">
+            <button class="btn-reset-mic">Restabilire Valori Implicite</button>
+            <button class="btn-save-mic">Salvare Modificări</button>
+        </div>
+    </div>
+</div>
+</template>
