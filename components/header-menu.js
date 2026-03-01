@@ -26,6 +26,7 @@ const NavigationManager = (function () {
         // Activate a screen element and the corresponding menu button
         function activateScreen(screenId, invokingButton) {
             try {
+                console.log('NavigationManager: activating screen', screenId);
                 // hide other screens
                 document.querySelectorAll('.screen.active').forEach(s => s.classList.remove('active'));
                 // unset active on buttons
@@ -62,6 +63,7 @@ const NavigationManager = (function () {
         async function navigate(screenId, invokingButton) {
             if (!screenId) return;
             // wait briefly for templates if needed
+            console.log('NavigationManager: navigate requested', screenId);
             await ensureTemplatesReady();
 
             // If screen still not present, try to reapply templates once (best-effort)
@@ -87,6 +89,7 @@ const NavigationManager = (function () {
                 menuBar.addEventListener('click', (ev) => {
                     const btn = ev.target.closest && ev.target.closest('.menu-btn');
                     if (!btn) return;
+                    console.log('NavigationManager: menu click', btn.getAttribute('data-screen'));
                     ev.preventDefault();
                     const screenId = btn.getAttribute('data-screen');
                     if (!screenId) return;
