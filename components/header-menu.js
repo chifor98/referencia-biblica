@@ -80,8 +80,9 @@ const NavigationManager = (function () {
         }
 
         function init() {
+            console.log('NavigationManager: init');
             // watch for screens-injected event to mark readiness
-            document.addEventListener('screens-injected', () => { templatesReady = true; if (pendingNav) { const p = pendingNav; pendingNav = null; navigate(p.screenId, p.btn); } });
+            document.addEventListener('screens-injected', () => { templatesReady = true; console.log('NavigationManager: screens-injected'); if (pendingNav) { const p = pendingNav; pendingNav = null; navigate(p.screenId, p.btn); } });
 
             // attach delegated click handler to the menu bar
             const menuBar = document.querySelector('.menu-bar');
@@ -137,4 +138,7 @@ const NavigationManager = (function () {
     } else {
         NavigationManager.init();
     }
+
+    // Expose for debugging from the console
+    try { window.NavManager = NavigationManager; } catch (e) { /* ignore non-browser env */ }
 
