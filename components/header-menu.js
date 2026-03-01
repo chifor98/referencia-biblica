@@ -21,7 +21,20 @@ function initializeHeaderMenu() {
         btn.classList.add('active');
 
         // Find target screen by id at click time (in case templates were replaced)
-        const targetScreen = document.getElementById(screenId);
+        let targetScreen = document.getElementById(screenId);
+        if (!targetScreen) {
+            // Try to re-apply templates in case they were not injected yet or were replaced
+            try {
+                if (typeof applyScreenTemplates === 'function') {
+                    applyScreenTemplates();
+                }
+            } catch (e) {
+                console.warn('applyScreenTemplates retry failed', e);
+            }
+            // re-query after a short delay to allow DOM updates
+            targetScreen = document.getElementById(screenId);
+        }
+
         if (targetScreen) {
             targetScreen.classList.add('active');
 
@@ -36,8 +49,8 @@ function initializeHeaderMenu() {
                 }
             }
         } else {
-            // If the target screen does not exist, keep current state and log for debugging
-            console.warn('Target screen not found for', screenId);
+            // If the target screen still does not exist, log for debugging
+            console.warn('Target screen not found for', screenId, 'after retry');
         }
     });
 }
