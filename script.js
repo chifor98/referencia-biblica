@@ -424,6 +424,146 @@ function showTempDropdown(anchorEl, items, onSelect = () => {}) {
     return dd;
 }
 
+// Grid picker: shows items in a 5x5 grid with paging and keyboard support.
+function showGridPicker(anchorEl, items, onSelect = () => {}, options = {}) {
+    if (!anchorEl || !items || !Array.isArray(items) || items.length === 0) return null;
+
+    // remove any existing temp pickers
+    document.querySelectorAll('.temp-dropdown, .temp-dropdown-grid').forEach(el => el.remove());
+
+    // ensure CSS is loaded
+    const cssHref = 'components/grid-picker.css';
+    if (!document.querySelector(`link[href="${cssHref}"]`)) {
+        const l = document.createElement('link');
+        l.rel = 'stylesheet';
+        l.href = cssHref;
+        document.head.appendChild(l);
+    }
+
+    const container = document.createElement('div');
+    container.className = 'grid-picker-container temp-dropdown-grid';
+    container.setAttribute('role', 'dialog');
+    container.setAttribute('aria-label', options.ariaLabel || 'Selector');
+    container.style.position = 'absolute';
+    container.style.zIndex = 10000;
+
+    const grid = document.createElement('div');
+    grid.className = 'grid-picker-grid';
+    container.appendChild(grid);
+
+    const footer = document.createElement('div');
+    footer.className = 'grid-picker-footer';
+    const info = document.createElement('div'); info.className = 'grid-picker-info';
+    const pager = document.createElement('div'); pager.className = 'grid-picker-pager';
+    const prevBtn = document.createElement('button'); prevBtn.className = 'grid-picker-btn'; prevBtn.textContent = 'Prev';
+    const nextBtn = document.createElement('button'); nextBtn.className = 'grid-picker-btn'; nextBtn.textContent = 'Next';
+    pager.appendChild(prevBtn); pager.appendChild(nextBtn);
+    footer.appendChild(info); footer.appendChild(pager);
+    container.appendChild(footer);
+
+    const pageSize = Number(options.pageSize) || 25;
+    let currentPage = 0;
+    const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+
+    function renderPage(pageIndex) {
+        grid.innerHTML = '';
+        const start = pageIndex * pageSize;
+        const pageItems = items.slice(start, start + pageSize);
+        pageItems.forEach((it, idx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'grid-picker-cell';
+            btn.tabIndex = 0;
+            btn.setAttribute('data-value', String(it.value));
+            btn.textContent = it.label;
+            btn.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                try { onSelect({ value: it.value, label: it.label }); } catch (e) { console.warn('grid picker onSelect error', e); }
+                cleanup();
+            });
+            grid.appendChild(btn);
+        });
+
+        // update footer
+        info.textContent = `${pageIndex + 1}/${totalPages}`;
+        prevBtn.disabled = (pageIndex <= 0);
+        nextBtn.disabled = (pageIndex >= totalPages - 1);
+
+        // focus first cell
+        setTimeout(() => {
+            const first = container.querySelector('.grid-picker-cell');
+            if (first) first.focus();
+        }, 10);
+    }
+
+    prevBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (currentPage > 0) { currentPage -= 1; renderPage(currentPage); }
+    });
+    nextBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (currentPage < totalPages - 1) { currentPage += 1; renderPage(currentPage); }
+    });
+
+    // positioning
+    document.body.appendChild(container);
+    const rect = anchorEl.getBoundingClientRect();
+    const top = rect.bottom + window.scrollY + 6;
+    let left = rect.left + window.scrollX;
+    container.style.left = left + 'px';
+    container.style.top = top + 'px';
+
+    // adjust if overflowing right
+    setTimeout(() => {
+        const cRect = container.getBoundingClientRect();
+        if (cRect.right > window.innerWidth - 8) {
+            const shift = cRect.right - (window.innerWidth - 8);
+            left = Math.max(8, left - shift);
+            container.style.left = left + 'px';
+        }
+    }, 20);
+
+    function onDocClick(ev) {
+        if (!container.contains(ev.target)) cleanup();
+    }
+
+    function onKeyDown(ev) {
+        try {
+            const active = document.activeElement;
+            if (!container.contains(active)) return;
+            if (ev.key === 'Escape') { ev.preventDefault(); cleanup(); return; }
+            const cells = Array.from(container.querySelectorAll('.grid-picker-cell'));
+            if (!cells.length) return;
+            const idx = cells.indexOf(active);
+            if (ev.key === 'ArrowRight') {
+                ev.preventDefault(); const next = cells[Math.min(cells.length - 1, Math.max(0, idx + 1))]; if (next) next.focus();
+            } else if (ev.key === 'ArrowLeft') {
+                ev.preventDefault(); const prev = cells[Math.max(0, idx - 1)]; if (prev) prev.focus();
+            } else if (ev.key === 'ArrowDown') {
+                ev.preventDefault(); const down = cells[Math.min(cells.length - 1, idx + 5)]; if (down) down.focus();
+            } else if (ev.key === 'ArrowUp') {
+                ev.preventDefault(); const up = cells[Math.max(0, idx - 5)]; if (up) up.focus();
+            } else if (ev.key === 'Enter') {
+                ev.preventDefault(); if (active && active.classList.contains('grid-picker-cell')) active.click();
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    function cleanup() {
+        document.removeEventListener('click', onDocClick);
+        document.removeEventListener('keydown', onKeyDown);
+        if (container && container.parentNode) container.parentNode.removeChild(container);
+    }
+
+    setTimeout(() => document.addEventListener('click', onDocClick), 10);
+    document.addEventListener('keydown', onKeyDown);
+
+    // initial render
+    renderPage(currentPage);
+
+    return container;
+}
+
 function displayVerse(data, book, chapter, verse, statusEl, textEl) {
     // Buscar el versículo en data.verses
     let text = '';
@@ -473,7 +613,73 @@ function displayVerse(data, book, chapter, verse, statusEl, textEl) {
                             // fallback: show a temporary dropdown near the clicked reference so we stay on the reading screen
                             try {
                                 const books = Object.keys(bibleStructure).map(b => ({ value: b, label: b }));
-                                showTempDropdown(bookEl || statusEl, books, (item) => {
+                                if (typeof showGridPicker === 'function') {
+                                    showGridPicker(bookEl || statusEl, books, (item) => {
+                                        try {
+                                            const bookName2 = item && item.value ? String(item.value) : null;
+                                            if (!bookName2) return;
+                                            // preserve previous chapter/verse when possible
+                                            const prevChap = parseInt(document.getElementById('small-selected-chapter')?.textContent, 10) || parseInt(chapter, 10) || 1;
+                                            const prevVerse = parseInt(document.getElementById('small-selected-verse')?.textContent, 10) || parseInt(verse, 10) || 1;
+
+                                            const bookData = bibleStructure[bookName2] || {};
+                                            const chaptersList = Object.keys(bookData).map(n=>parseInt(n,10)).sort((a,b)=>a-b);
+
+                                            let newChap, newVerse;
+                                            if (bookData && typeof bookData[prevChap] !== 'undefined') {
+                                                // same chapter exists in new book
+                                                const totalVerses = bookData[prevChap] || 0;
+                                                newChap = prevChap;
+                                                if (totalVerses >= prevVerse) newVerse = prevVerse; else newVerse = 1;
+                                            } else {
+                                                // fallback to first chapter
+                                                newChap = chaptersList.length ? chaptersList[0] : 1;
+                                                newVerse = 1;
+                                            }
+
+                                            const sb = document.getElementById('small-selected-book'); if (sb) sb.textContent = bookName2;
+                                            const sc = document.getElementById('small-selected-chapter'); if (sc) sc.textContent = String(newChap);
+                                            const sv = document.getElementById('small-selected-verse'); if (sv) sv.textContent = String(newVerse);
+
+                                            if (typeof handleSmallBookSelection === 'function') try { handleSmallBookSelection(bookName2); } catch (e) { console.warn(e); }
+                                            // load selected verse of the new book/chapter
+                                            try { setReference(bookName2, newChap, newVerse, true); } catch (e) { console.warn('setReference after temp book select failed', e); }
+                                        } catch (e) { console.warn('temp book select error', e); }
+                                    }, { pageSize: 25 });
+                                } else {
+                                    showTempDropdown(bookEl || statusEl, books, (item) => {
+                                        try {
+                                            const bookName2 = item && item.value ? String(item.value) : null;
+                                            if (!bookName2) return;
+                                            // preserve previous chapter/verse when possible
+                                            const prevChap = parseInt(document.getElementById('small-selected-chapter')?.textContent, 10) || parseInt(chapter, 10) || 1;
+                                            const prevVerse = parseInt(document.getElementById('small-selected-verse')?.textContent, 10) || parseInt(verse, 10) || 1;
+
+                                            const bookData = bibleStructure[bookName2] || {};
+                                            const chaptersList = Object.keys(bookData).map(n=>parseInt(n,10)).sort((a,b)=>a-b);
+
+                                            let newChap, newVerse;
+                                            if (bookData && typeof bookData[prevChap] !== 'undefined') {
+                                                // same chapter exists in new book
+                                                const totalVerses = bookData[prevChap] || 0;
+                                                newChap = prevChap;
+                                                if (totalVerses >= prevVerse) newVerse = prevVerse; else newVerse = 1;
+                                            } else {
+                                                // fallback to first chapter
+                                                newChap = chaptersList.length ? chaptersList[0] : 1;
+                                                newVerse = 1;
+                                            }
+
+                                            const sb = document.getElementById('small-selected-book'); if (sb) sb.textContent = bookName2;
+                                            const sc = document.getElementById('small-selected-chapter'); if (sc) sc.textContent = String(newChap);
+                                            const sv = document.getElementById('small-selected-verse'); if (sv) sv.textContent = String(newVerse);
+
+                                            if (typeof handleSmallBookSelection === 'function') try { handleSmallBookSelection(bookName2); } catch (e) { console.warn(e); }
+                                            // load selected verse of the new book/chapter
+                                            try { setReference(bookName2, newChap, newVerse, true); } catch (e) { console.warn('setReference after temp book select failed', e); }
+                                        } catch (e) { console.warn('temp book select error', e); }
+                                    });
+                                }
                                     try {
                                         const bookName2 = item && item.value ? String(item.value) : null;
                                         if (!bookName2) return;
@@ -525,8 +731,37 @@ function displayVerse(data, book, chapter, verse, statusEl, textEl) {
                             } else {
                                 try {
                                     const bookName = book;
-                                    const chapters = Object.keys(bibleStructure[bookName] || {}).map(n => ({ value: n, label: n }));
-                                    showTempDropdown(chapEl || statusEl, chapters, (item) => {
+                                        const chapters = Object.keys(bibleStructure[bookName] || {}).map(n => ({ value: n, label: n }));
+                                        // use grid picker when available for a nicer 5x5 selection
+                                        if (typeof showGridPicker === 'function') {
+                                            showGridPicker(chapEl || statusEl, chapters, (item) => {
+                                                try {
+                                                    const selChap = item && item.value ? parseInt(item.value, 10) : NaN;
+                                                    if (isNaN(selChap)) return;
+                                                    const sc = document.getElementById('small-selected-chapter'); if (sc) sc.textContent = String(selChap);
+                                                    if (typeof handleSmallChapterSelection === 'function') try { handleSmallChapterSelection(String(selChap)); } catch (e) { console.warn(e); }
+                                                    // load verse: keep previous verse only if this chapter has that many verses, otherwise set to 1
+                                                    const prevVerse = parseInt(document.getElementById('small-selected-verse')?.textContent, 10) || parseInt(verse, 10) || 1;
+                                                    const totalVerses = (bibleStructure[book] && bibleStructure[book][selChap]) || 0;
+                                                    const vToUse = (totalVerses >= prevVerse) ? prevVerse : 1;
+                                                    try { setReference(book, selChap, vToUse, true); } catch (e) { console.warn('setReference after temp chapter select failed', e); }
+                                                } catch (e) { console.warn('temp chapter select error', e); }
+                                            }, { pageSize: 25 });
+                                        } else {
+                                            showTempDropdown(chapEl || statusEl, chapters, (item) => {
+                                                try {
+                                                    const selChap = item && item.value ? parseInt(item.value, 10) : NaN;
+                                                    if (isNaN(selChap)) return;
+                                                    const sc = document.getElementById('small-selected-chapter'); if (sc) sc.textContent = String(selChap);
+                                                    if (typeof handleSmallChapterSelection === 'function') try { handleSmallChapterSelection(String(selChap)); } catch (e) { console.warn(e); }
+                                                    // load verse: keep previous verse only if this chapter has that many verses, otherwise set to 1
+                                                    const prevVerse = parseInt(document.getElementById('small-selected-verse')?.textContent, 10) || parseInt(verse, 10) || 1;
+                                                    const totalVerses = (bibleStructure[book] && bibleStructure[book][selChap]) || 0;
+                                                    const vToUse = (totalVerses >= prevVerse) ? prevVerse : 1;
+                                                    try { setReference(book, selChap, vToUse, true); } catch (e) { console.warn('setReference after temp chapter select failed', e); }
+                                                } catch (e) { console.warn('temp chapter select error', e); }
+                                            });
+                                        }
                                             try {
                                                 const selChap = item && item.value ? parseInt(item.value, 10) : NaN;
                                                 if (isNaN(selChap)) return;
@@ -571,12 +806,21 @@ function displayVerse(data, book, chapter, verse, statusEl, textEl) {
                                     const chapNum = parseInt(document.getElementById('small-selected-chapter')?.textContent || chapter, 10);
                                     const total = (bibleStructure[bookName] && bibleStructure[bookName][chapNum]) || 0;
                                     const verses = Array.from({ length: total }, (_, i) => ({ value: i + 1, label: String(i + 1) }));
-                                    showTempDropdown(verseEl || statusEl, verses, (item) => {
-                                        try {
-                                            const selV = item && item.value ? parseInt(item.value, 10) : NaN;
-                                            if (!isNaN(selV)) setReference(bookName, chapNum, selV, true);
-                                        } catch (e) { console.warn('temp verse select error', e); }
-                                    });
+                                                            if (typeof showGridPicker === 'function') {
+                                                                showGridPicker(verseEl || statusEl, verses, (item) => {
+                                                                    try {
+                                                                        const selV = item && item.value ? parseInt(item.value, 10) : NaN;
+                                                                        if (!isNaN(selV)) setReference(bookName, chapNum, selV, true);
+                                                                    } catch (e) { console.warn('temp verse select error', e); }
+                                                                }, { pageSize: 25 });
+                                                            } else {
+                                                                showTempDropdown(verseEl || statusEl, verses, (item) => {
+                                                                    try {
+                                                                        const selV = item && item.value ? parseInt(item.value, 10) : NaN;
+                                                                        if (!isNaN(selV)) setReference(bookName, chapNum, selV, true);
+                                                                    } catch (e) { console.warn('temp verse select error', e); }
+                                                                });
+                                                            }
                                 } catch (e) { console.warn('temp dropdown verse fallback failed', e); }
                             }
                         } catch (e) { console.warn(e); }

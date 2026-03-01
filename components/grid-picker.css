@@ -1,0 +1,61 @@
+/* Grid picker styles: a compact 5x5 grid with paging controls */
+.grid-picker-container {
+  position: absolute;
+  z-index: 10000;
+  background: var(--sheet-bg, #fff);
+  color: var(--text-color, #111);
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  border-radius: 6px;
+  padding: 8px;
+  min-width: 220px;
+  max-width: 420px;
+  box-sizing: border-box;
+}
+.grid-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.grid-picker-cell {
+  background: var(--btn-bg, #f6f6f8);
+  border: 1px solid rgba(0,0,0,0.06);
+  padding: 8px 6px;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 4px;
+  user-select: none;
+  font-size: 0.95rem;
+}
+.grid-picker-cell:focus {
+  outline: 2px solid #6aa6ff;
+  background: #eaf3ff;
+}
+.grid-picker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.grid-picker-pager {
+  display: flex;
+  gap: 6px;
+}
+.grid-picker-btn {
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.08);
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.grid-picker-info {
+  font-size: 0.85rem;
+  color: rgba(0,0,0,0.6);
+}
+
+/* small screens fallback */
+@media (max-width: 420px) {
+  .grid-picker-container { left: 6px !important; right: 6px !important; min-width: auto; }
+  .grid-picker-grid { grid-template-columns: repeat(4, 1fr); }
+}
