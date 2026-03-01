@@ -1,16 +1,8 @@
 // ============================================
-// Header Menu Component - Gestión de Navegación
+// Header Menu Component - Robust Navigation Manager
 // ============================================
 
-function initializeHeaderMenu() {
-    // Use event delegation and live queries so this remains correct after templates are injected/replaced
-    const menuBar = document.querySelector('.menu-bar');
-    if (!menuBar) return;
-
-        NavigationManager.init();
-    }
-
-    const NavigationManager = (function () {
+const NavigationManager = (function () {
         let templatesReady = false;
         let pendingNav = null;
 
@@ -142,16 +134,4 @@ function initializeHeaderMenu() {
     } else {
         NavigationManager.init();
     }
-}
-
-// Inicializar cuando el DOM esté listo
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        // Esperar a que las plantillas estén cargadas
-        setTimeout(initializeHeaderMenu, 150);
-    });
-} else {
-    // DOM ya está listo
-    setTimeout(initializeHeaderMenu, 150);
-}
 
