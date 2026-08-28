@@ -1,6 +1,8 @@
 body {
     /* Fundal ce imită pergamentul vechi */
     /* background-image: url('URL_DE_TU_IMAGEN_DE_PERGAMINO'); */ /* Înlocuiește cu o URL/cale către o textură */
+    /* Fallback color/gradient to avoid pure white background if image is missing */
+    background: linear-gradient(180deg, #fbf8f2 0%, #f3eee4 100%);
     background-size: cover;
     background-position: center;
     background-attachment: fixed;

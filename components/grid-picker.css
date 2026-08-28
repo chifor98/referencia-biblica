@@ -2,14 +2,15 @@
 .grid-picker-container {
   position: absolute;
   z-index: 10000;
-  background: var(--sheet-bg, #fff);
-  color: var(--text-color, #111);
-  border: 1px solid rgba(0,0,0,0.08);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-  border-radius: 6px;
-  padding: 8px;
+  /* match main sheet look */
+  background: linear-gradient(#fffaf0, #f6efe0);
+  color: #4B382F;
+  border: 1px solid rgba(180,140,100,0.18);
+  box-shadow: 0 8px 22px rgba(40,30,20,0.14);
+  border-radius: 8px;
+  padding: 10px;
   min-width: 220px;
-  max-width: 420px;
+  max-width: 520px;
   box-sizing: border-box;
 }
 .grid-picker-grid {
@@ -19,14 +20,16 @@
   margin-bottom: 8px;
 }
 .grid-picker-cell {
-  background: var(--btn-bg, #f6f6f8);
-  border: 1px solid rgba(0,0,0,0.06);
-  padding: 8px 6px;
+  background: linear-gradient(#fffaf0, #f8f1df);
+  border: 1px solid rgba(160,120,80,0.09);
+  padding: 10px 8px;
   text-align: center;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   user-select: none;
-  font-size: 0.95rem;
+  font-size: 0.98rem;
+  color: #4B382F;
+  font-weight: 600;
 }
 .grid-picker-cell:focus {
   outline: 2px solid #6aa6ff;
@@ -43,11 +46,13 @@
   gap: 6px;
 }
 .grid-picker-btn {
-  background: transparent;
-  border: 1px solid rgba(0,0,0,0.08);
+  background: linear-gradient(#fffaf0, #f0dfb8);
+  border: 1px solid rgba(180,150,100,0.35);
   padding: 6px 10px;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
+  color: #4B382F;
+  font-weight: 700;
 }
 .grid-picker-info {
   font-size: 0.85rem;

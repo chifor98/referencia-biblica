@@ -40,8 +40,153 @@ const voiceState = {
     aiJustDetected: false // flag para reducir umbral después de detección
 };
 
-// Nombres de libros de la Biblia en rumano (del bibleStructure)
-const bookNames = Object.keys(bibleStructure);
+// Saturation / watchdog state
+voiceState.sessionStartTime = null;
+voiceState.lastResultTimestamp = null;
+voiceState.watchdogTimerId = null;
+voiceState.restartAttempts = 0;
+voiceState.isRestarting = false;
+voiceState.lastRestartTime = 0;
+
+// Aplicar configuración del micrófono desde window.microphoneConfig
+function applyMicrophoneConfig(cfg) {
+    if (!cfg) return;
+    try {
+        voiceState.autociteConfig = cfg.autocite || voiceState.autociteConfig;
+        voiceState.literalConfig = cfg.literal || voiceState.literalConfig;
+        voiceState.iaConfig = cfg.ia || voiceState.iaConfig;
+        console.log('[microphoneConfig] Applied new config:', {
+            autocite: voiceState.autociteConfig,
+            literal: voiceState.literalConfig,
+            ia: voiceState.iaConfig
+        });
+    } catch (e) {
+        console.warn('Failed to apply microphoneConfig', e);
+    }
+}
+
+// Escuchar cambios en la configuración del micrófono para aplicar en caliente
+window.addEventListener('microphoneConfigChanged', (e) => {
+    console.log('[microphoneConfig] microphoneConfigChanged event received');
+    applyMicrophoneConfig(e.detail || window.microphoneConfig);
+});
+
+// Aplicar inmediatamente si ya existe configuración global
+if (window.microphoneConfig) {
+    applyMicrophoneConfig(window.microphoneConfig);
+}
+
+// ===== SATURATION WATCHDOG / SAFE RESTART =====
+function startSaturationWatchdog() {
+    if (voiceState.watchdogTimerId) return;
+    // Default config (can be overridden by window.microphoneConfig.saturation)
+    const defaultCfg = { maxSessionMs: 5 * 60 * 1000, silenceThresholdMs: 30 * 1000, backoffBaseMs: 1000, maxRestarts: 6, checkIntervalMs: 5000 };
+    voiceState.saturationCfg = (window.microphoneConfig && window.microphoneConfig.saturation) ? Object.assign(defaultCfg, window.microphoneConfig.saturation) : defaultCfg;
+
+    voiceState.watchdogTimerId = setInterval(() => {
+        try {
+            checkSaturation();
+        } catch (e) { console.warn('watchdog check failed', e); }
+    }, voiceState.saturationCfg.checkIntervalMs);
+    console.log('[watchdog] started with cfg', voiceState.saturationCfg);
+}
+
+function stopSaturationWatchdog() {
+    if (voiceState.watchdogTimerId) {
+        clearInterval(voiceState.watchdogTimerId);
+        voiceState.watchdogTimerId = null;
+    }
+    voiceState.restartAttempts = 0;
+    voiceState.isRestarting = false;
+    console.log('[watchdog] stopped');
+}
+
+function checkSaturation() {
+    if (!voiceState.isListening || !voiceState.recognition) return;
+    const now = Date.now();
+    const cfg = voiceState.saturationCfg || { maxSessionMs: 300000, silenceThresholdMs: 30000 };
+
+    // Start session time if not set
+    if (!voiceState.sessionStartTime) voiceState.sessionStartTime = now;
+
+    // 1) Silence detection: no result for long
+    if (voiceState.lastResultTimestamp && (now - voiceState.lastResultTimestamp) > cfg.silenceThresholdMs) {
+        console.warn('[watchdog] silence threshold exceeded, attempting safe restart');
+        safeRestartRecognition('silence');
+        return;
+    }
+
+    // 2) Long session detection
+    if (now - voiceState.sessionStartTime > cfg.maxSessionMs) {
+        console.warn('[watchdog] max session duration exceeded, attempting safe restart');
+        safeRestartRecognition('duration');
+        return;
+    }
+}
+
+function safeRestartRecognition(reason = 'auto') {
+    if (!voiceState.isListening || !voiceState.recognition) return;
+    if (voiceState.isRestarting) {
+        console.log('[safeRestart] already restarting, skipping');
+        return;
+    }
+
+    voiceState.isRestarting = true;
+    voiceState.restartAttempts = (voiceState.restartAttempts || 0) + 1;
+    voiceState.lastRestartTime = Date.now();
+
+    const cfg = voiceState.saturationCfg || { backoffBaseMs: 1000, maxRestarts: 6 };
+    const attempt = voiceState.restartAttempts;
+    const backoff = Math.min(60000, Math.pow(2, Math.max(0, attempt - 1)) * (cfg.backoffBaseMs || 1000));
+
+    console.log(`[safeRestart] reason=${reason} attempt=${attempt} backoff=${backoff}ms`);
+
+    try {
+        // Stop recognition gracefully
+        try { voiceState.recognition.stop(); } catch (e) { /* ignore */ }
+        voiceState.isListening = false;
+        // Wait backoff then restart if still desired
+        setTimeout(() => {
+            try {
+                if (voiceState.autocitireMode) {
+                    voiceState.recognition.start();
+                    voiceState.isListening = true;
+                } else if (voiceState.aiMode) {
+                    voiceState.recognition.start();
+                    voiceState.isListening = true;
+                } else {
+                    voiceState.recognition.start();
+                    voiceState.isListening = true;
+                }
+                // reset session timestamps
+                voiceState.sessionStartTime = Date.now();
+                voiceState.lastResultTimestamp = Date.now();
+                voiceState.isRestarting = false;
+                console.log('[safeRestart] recognition restarted after backoff');
+            } catch (e) {
+                voiceState.isRestarting = false;
+                console.error('[safeRestart] restart failed', e);
+            }
+        }, backoff);
+    } catch (e) {
+        voiceState.isRestarting = false;
+        console.error('[safeRestart] failed to stop/start recognition', e);
+    }
+
+    // If too many restarts, stop auto restarts and notify user
+    if (voiceState.restartAttempts >= (cfg.maxRestarts || 6)) {
+        console.error('[safeRestart] too many restart attempts, disabling auto-restart and notifying user');
+        stopSaturationWatchdog();
+        showMicNotification('S-au detectat probleme cu microfonul: oprirea automată a restart-ului. Reîncearcă manual.');
+    }
+}
+
+// Helper to lazily get book names from the global bibleStructure.
+// Some components may load before `script.js` defines `bibleStructure`.
+// To avoid a ReferenceError at module parse time, resolve this lazily.
+function getBookNames() {
+    return Object.keys(window.bibleStructure || {});
+}
 
 // ===== VARIACIONES DE NOMBRES DE LIBROS =====
 // Mapeo de variaciones comunes (singular/plural, abreviaciones) a nombres oficiales
@@ -122,6 +267,7 @@ function normalizeBookName(bookName) {
     }
     
     // Buscar coincidencia exacta (case-insensitive)
+    const bookNames = getBookNames();
     const exactMatch = bookNames.find(b => b.toLowerCase() === normalized);
     if (exactMatch) {
         console.log(`  ✓ Exact match found: ${exactMatch}`);
@@ -142,76 +288,87 @@ function normalizeBookName(bookName) {
 }
 
 // ===== PATRONES REGEX PARA DETECCIÓN RÁPIDA =====
-const romanianBiblePatterns = [
-    // Patrón 1: "Geneza 1:1" o "Ioan 3:16"
-    {
-        regex: new RegExp(`\\b(${bookNames.join('|')})\\s+(\\d+):(\\d+)\\b`, 'i'),
-        extract: (match) => ({
-            book: match[1],
-            chapter: parseInt(match[2]),
-            verse: parseInt(match[3])
-        })
-    },
-    // Patrón 2: "Geneza 2 cu 5" (formato rumano con "cu" = con)
-    {
-        regex: new RegExp(`\\b(${bookNames.join('|')})\\s+(\\d+)\\s+cu\\s+(\\d+)\\b`, 'i'),
-        extract: (match) => ({
-            book: match[1],
-            chapter: parseInt(match[2]),
-            verse: parseInt(match[3])
-        })
-    },
-    // Patrón 3: "Geneza capitolul 1 versetul 1"
-    {
-        regex: new RegExp(`\\b(${bookNames.join('|')})\\s+(?:capitolul|cap\\.?)\\s+(\\d+)\\s+(?:versetul|vers\\.?|v\\.)\\s+(\\d+)\\b`, 'i'),
-        extract: (match) => ({
-            book: match[1],
-            chapter: parseInt(match[2]),
-            verse: parseInt(match[3])
-        })
-    },
-    // Patrón 4: "capitolul 3 din Ioan"
-    {
-        regex: new RegExp(`\\b(?:capitolul|cap\\.?)\\s+(\\d+)\\s+din\\s+(${bookNames.join('|')})\\b`, 'i'),
-        extract: (match) => ({
-            book: match[2],
-            chapter: parseInt(match[1]),
-            verse: 1 // default al primer versículo
-        })
-    },
-    // Patrón 5: "versetul 5" o "versul 5" (en contexto)
-    {
-        regex: /\b(?:versetul|versul|vers\.?)\s+(\d+)\b/i,
-        extract: (match, context) => {
-            if (!context.book || !context.chapter) return null;
-            return {
-                book: context.book,
-                chapter: context.chapter,
-                verse: parseInt(match[1])
-            };
+// These are built lazily when voice initialization runs, because they
+// depend on the list of book names which may be defined later in `script.js`.
+function buildRomanianBiblePatterns() {
+    const bookNames = getBookNames();
+    // Escape book names for regex (in case of special chars)
+    const escaped = bookNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const bookGroup = escaped.join('|') || 'UNK_BOOK';
+
+    return [
+        // Patrón 1: "Geneza 1:1" o "Ioan 3:16"
+        {
+            regex: new RegExp(`\\b(${bookGroup})\\s+(\\d+):(\\d+)\\b`, 'i'),
+            extract: (match) => ({
+                book: match[1],
+                chapter: parseInt(match[2]),
+                verse: parseInt(match[3])
+            })
         },
-        needsContext: true
-    },
-    // Patrón 6: Solo números (ej: "5", "6", "7") cuando hay contexto reciente
-    {
-        regex: /\b(\d{1,3})\b/,
-        extract: (match, context) => {
-            if (!context.book || !context.chapter) return null;
-            const num = parseInt(match[1]);
-            // Solo aceptar números que parezcan versículos (1-200)
-            if (num < 1 || num > 200) return null;
-            // Verificar que el contexto sea reciente (últimos 10 segundos)
-            if (Date.now() - context.timestamp > 10000) return null;
-            return {
-                book: context.book,
-                chapter: context.chapter,
-                verse: num
-            };
+        // Patrón 2: "Geneza 2 cu 5" (formato rumano con "cu" = con)
+        {
+            regex: new RegExp(`\\b(${bookGroup})\\s+(\\d+)\\s+cu\\s+(\\d+)\\b`, 'i'),
+            extract: (match) => ({
+                book: match[1],
+                chapter: parseInt(match[2]),
+                verse: parseInt(match[3])
+            })
         },
-        needsContext: true,
-        lowPriority: true // Solo usar si otros patrones fallan
-    }
-];
+        // Patrón 3: "Geneza capitolul 1 versetul 1"
+        {
+            regex: new RegExp(`\\b(${bookGroup})\\s+(?:capitolul|cap\\.?)\\s+(\\d+)\\s+(?:versetul|vers\\.?|v\\.)\\s+(\\d+)\\b`, 'i'),
+            extract: (match) => ({
+                book: match[1],
+                chapter: parseInt(match[2]),
+                verse: parseInt(match[3])
+            })
+        },
+        // Patrón 4: "capitolul 3 din Ioan"
+        {
+            regex: new RegExp(`\\b(?:capitolul|cap\\.?)\\s+(\\d+)\\s+din\\s+(${bookGroup})\\b`, 'i'),
+            extract: (match) => ({
+                book: match[2],
+                chapter: parseInt(match[1]),
+                verse: 1 // default al primer versículo
+            })
+        },
+        // Patrón 5: "versetul 5" o "versul 5" (en contexto)
+        {
+            regex: /\\b(?:versetul|versul|vers\\.?)\\s+(\\d+)\\b/i,
+            extract: (match, context) => {
+                if (!context.book || !context.chapter) return null;
+                return {
+                    book: context.book,
+                    chapter: context.chapter,
+                    verse: parseInt(match[1])
+                };
+            },
+            needsContext: true
+        },
+        // Patrón 6: Solo números (ej: "5", "6", "7") cuando hay contexto reciente
+        {
+            regex: /\\b(\\d{1,3})\\b/,
+            extract: (match, context) => {
+                if (!context.book || !context.chapter) return null;
+                const num = parseInt(match[1]);
+                // Solo aceptar números que parezcan versículos (1-200)
+                if (num < 1 || num > 200) return null;
+                // Verificar que el contexto sea reciente (últimos 10 segundos)
+                if (Date.now() - context.timestamp > 10000) return null;
+                return {
+                    book: context.book,
+                    chapter: context.chapter,
+                    verse: num
+                };
+            },
+            needsContext: true,
+            lowPriority: true // Solo usar si otros patrones fallan
+        }
+    ];
+}
+// Module-level holder for the patterns; populated during initVoiceRecognition
+let romanianBiblePatterns = [];
 
 // ===== INICIALIZACIÓN =====
 function initVoiceRecognition() {
@@ -280,6 +437,15 @@ function initVoiceRecognition() {
     
     // Cargar toda la Biblia desde XML local en segundo plano
     loadBibleFromXML();
+
+    // Build regex patterns now that bibleStructure should be available
+    try {
+        romanianBiblePatterns = buildRomanianBiblePatterns();
+        console.log('🔧 Built romanianBiblePatterns:', romanianBiblePatterns.length, 'patterns');
+    } catch (e) {
+        console.warn('⚠️ Failed to build romanianBiblePatterns:', e);
+        romanianBiblePatterns = [];
+    }
     
     // Prueba de normalización de caracteres rumanos
     console.log('🧪 Testing Romanian character normalization:');
@@ -379,6 +545,10 @@ function startVoiceRecognition() {
     try {
         voiceState.recognition.start();
         voiceState.isListening = true;
+        voiceState.sessionStartTime = Date.now();
+        voiceState.lastResultTimestamp = Date.now();
+        voiceState.restartAttempts = 0;
+        startSaturationWatchdog();
         updateButtonState(true);
         console.log('🎤 Started voice recognition...');
     } catch (error) {
@@ -392,6 +562,7 @@ function stopVoiceRecognition() {
         voiceState.recognition.stop();
     }
     voiceState.isListening = false;
+    stopSaturationWatchdog();
     updateButtonState(false);
     
     // Ocultar transcripción en vivo
@@ -418,13 +589,8 @@ function handleSpeechEnd() {
     console.log('Speech ended');
     // Auto-reiniciar si aún está en modo listening
     if (voiceState.isListening) {
-        setTimeout(() => {
-            try {
-                voiceState.recognition.start();
-            } catch (error) {
-                console.error('Error restarting:', error);
-            }
-        }, 100);
+        // Use safe restart helper to avoid rapid loops
+        safeRestartRecognition('onend');
     }
 }
 
@@ -489,6 +655,10 @@ function startAutocitire() {
         voiceState.recognition.start();
         voiceState.isListening = true;
         updateAutocitireButtonState(true);
+        voiceState.sessionStartTime = Date.now();
+        voiceState.lastResultTimestamp = Date.now();
+        voiceState.restartAttempts = 0;
+        startSaturationWatchdog();
         console.log('🎤 Autocitire started...');
     } catch (error) {
         console.error('Error starting Autocitire:', error);
@@ -507,6 +677,7 @@ function stopAutocitire() {
         voiceState.recognition.stop();
     }
     voiceState.isListening = false;
+    stopSaturationWatchdog();
     updateAutocitireButtonState(false);
 }
 
@@ -536,6 +707,10 @@ function startAIRecognition() {
         
         // Iniciar análisis periódico
         startAIAnalysisInterval();
+        voiceState.sessionStartTime = Date.now();
+        voiceState.lastResultTimestamp = Date.now();
+        voiceState.restartAttempts = 0;
+        startSaturationWatchdog();
     } catch (error) {
         console.error('Error starting AI Recognition:', error);
         alert('Eroare la pornirea microfonului: ' + error.message);
@@ -552,6 +727,7 @@ function stopAIRecognition() {
         voiceState.recognition.stop();
     }
     voiceState.isListening = false;
+    stopSaturationWatchdog();
     updateButtonState(false);
 }
 
@@ -698,6 +874,22 @@ function processAutocitireTranscript(transcript) {
         if (nextChapterVerse) {
             checkVerseTransition(spokenWords, nextChapterVerse, nextVerseRef);
         }
+        // Si no existe el siguiente capítulo, considerar la opción de "loop" (volver al inicio)
+        const autociteCfg = (window.microphoneConfig && window.microphoneConfig.autocite) || { delay: 300, speed: 1, highlight: true, loop: true };
+        if (!nextChapterVerse && autociteCfg.loop) {
+            // Encontrar el primer versículo del mismo libro (capítulo 1, verso 1) o el primer versículo disponible
+            let wrapVerse = voiceState.bibleVerses.find(v => v.book === nextVerseRef.book && v.chapter === 1 && v.verse === 1);
+            if (!wrapVerse) {
+                // Fallback: primer versículo del índice completo
+                wrapVerse = voiceState.bibleVerses.length ? voiceState.bibleVerses[0] : null;
+            }
+            if (wrapVerse) {
+                const wrapRef = { book: wrapVerse.book, chapter: wrapVerse.chapter, verse: wrapVerse.verse };
+                console.log('🔁 Autocitire loop enabled — wrapping to:', wrapRef);
+                checkVerseTransition(spokenWords, wrapVerse, wrapRef);
+                return;
+            }
+        }
         return;
     }
 
@@ -827,7 +1019,17 @@ function advanceToNextVerse(nextVerseRef) {
         // Detener y reiniciar el reconocimiento
         voiceState.recognition.stop();
         
-        // Esperar un momento antes de reiniciar
+        // Calcular pausa configurable según la configuración de Autocite
+        const autociteCfg = (window.microphoneConfig && window.microphoneConfig.autocite) || { delay: 300, speed: 1, highlight: true, loop: true };
+        // Si el usuario ha aumentado la "speed" entendemos que quiere menos pausa
+        const pauseMs = Math.max(0, Math.floor((autociteCfg.delay || 300) / (autociteCfg.speed || 1)));
+
+        // Si está habilitado el highlight, resaltar el versículo mostrado por la duración de la pausa
+        if (autociteCfg.highlight) {
+            try { highlightDisplayedVerse(nextVerseRef.book, nextVerseRef.chapter, nextVerseRef.verse, pauseMs); } catch (e) { /* ignore */ }
+        }
+
+        // Esperar un momento antes de reiniciar (pausa configurable)
         setTimeout(() => {
             if (wasListening && voiceState.autocitireMode) {
                 try {
@@ -837,9 +1039,41 @@ function advanceToNextVerse(nextVerseRef) {
                     console.log('Speech recognition already started or error:', error.message);
                 }
             }
-        }, 300); // 300ms de pausa para limpiar el buffer
+        }, pauseMs);
     }
 }
+
+// Resalta el versículo actualmente mostrado en la pantalla de lectura
+function highlightDisplayedVerse(book, chapter, verse, durationMs = 600) {
+    // Intentar encontrar el contenedor del versículo en la pantalla de lectura
+    try {
+        const verseEl = document.getElementById('verse-text-reading');
+        if (!verseEl) return;
+
+        // Añadir clase temporal
+        verseEl.classList.add('autocite-highlight');
+
+        // Si la duración es 0, dejar el highlight constante
+        if (durationMs > 0) {
+            setTimeout(() => {
+                verseEl.classList.remove('autocite-highlight');
+            }, durationMs);
+        }
+    } catch (e) {
+        console.warn('highlightDisplayedVerse failed', e);
+    }
+}
+
+// Añadir estilo por defecto para la clase de highlight si no existe
+(function ensureAutociteHighlightStyle() {
+    if (document.getElementById('autocite-highlight-style')) return;
+    const s = document.createElement('style');
+    s.id = 'autocite-highlight-style';
+    s.textContent = `
+        .autocite-highlight { background: linear-gradient(90deg, rgba(255,255,0,0.12), rgba(255,255,0,0.05)); padding: 6px 8px; border-left: 4px solid rgba(255,215,0,0.9); transition: box-shadow 180ms ease; }
+    `;
+    document.head.appendChild(s);
+})();
 
 // ===== PROCESAMIENTO DE SPEECH =====
 function handleSpeechResult(event) {
@@ -856,6 +1090,9 @@ function handleSpeechResult(event) {
 
     // Mostrar últimas 5 palabras en tiempo real (incluso resultados parciales)
     if (transcript.trim()) {
+        // actualizar timestamp del último resultado recibido (para watchdog)
+        voiceState.lastResultTimestamp = Date.now();
+
         updateLiveTranscript(transcript);
         
         // MODO IA: Acumular transcript para análisis
@@ -931,6 +1168,48 @@ function processTranscript(transcript) {
         const globalMatch = searchInCompleteBible(transcript);
         if (globalMatch) {
             console.log('🌍 Global search match:', globalMatch);
+            // Aplicar umbrales configurables para Autorecunoaște literal (modo normal)
+            if (!voiceState.autocitireMode) {
+                const litCfg = (window.microphoneConfig && window.microphoneConfig.literal) || { sameChapter: 5, sameBook: 35, otherBook: 89 };
+                const ctx = voiceState.currentContext || {};
+                let thresholdPct = litCfg.otherBook || 89;
+                try {
+                    if (ctx.book && ctx.chapter && globalMatch.book === ctx.book && globalMatch.chapter === ctx.chapter) {
+                        thresholdPct = litCfg.sameChapter;
+                    } else if (ctx.book && globalMatch.book === ctx.book) {
+                        thresholdPct = litCfg.sameBook;
+                    } else {
+                        thresholdPct = litCfg.otherBook;
+                    }
+                } catch (e) {
+                    thresholdPct = litCfg.otherBook;
+                }
+
+                const threshold = Math.max(0, Math.min(1, (thresholdPct || 0) / 100));
+                console.log(`🔎 Literal mode threshold (search): ${thresholdPct}% -> ${threshold}`);
+                // Acceptance based on spoken-verse coverage: compare how many words
+                // the user said vs total words in the detected verse. This respects the
+                // configured percentage (sameChapter/sameBook/otherBook).
+                const cov = computeSpokenVerseCoverage(transcript, globalMatch);
+                const covPct = Math.round((cov.coverage || 0) * 100);
+                console.log(`🔎 Coverage check: ${covPct}% (${cov.spokenCount}/${cov.verseCount}) for ${globalMatch.book} ${globalMatch.chapter}:${globalMatch.verse}`);
+
+                // thresholdPct is the percent configured by user. Accept when coverage >= thresholdPct
+                if ((cov.coverage || 0) >= (thresholdPct / 100)) {
+                    console.log(`✅ Global match accepted by COVERAGE ${covPct}% >= ${thresholdPct}%`);
+                    handleDetectedReference(globalMatch, 'search-coverage', transcript);
+                } else {
+                    console.log(`❌ Global match rejected by COVERAGE ${covPct}% < ${thresholdPct}% (similarity ${Math.round(globalMatch.similarity*100)}%)`);
+                    // Keep caching if similarity is moderately high to try later
+                    if (globalMatch.similarity > Math.max(0.5, (threshold || 0) * 0.6)) {
+                        console.log('🔄 Global match below coverage but similarity moderate, caching for improvement:', globalMatch);
+                        voiceState.incrementalMatchCache = globalMatch;
+                    }
+                }
+                return;
+            }
+
+            // En Autocitire mantener comportamiento previo (aceptar si suficientemente alto)
             handleDetectedReference(globalMatch, 'search', transcript);
             return;
         }
@@ -969,14 +1248,48 @@ function processTranscriptIncremental(transcript, isFinal) {
     const globalMatch = searchInCompleteBible(transcript);
     
     if (globalMatch) {
-        // Modo Autorecunoaște: SIEMPRE mostrar el mejor match, sin importar el porcentaje
+        // Si no estamos en Autocitire, aplicar umbrales configurables para Autorecunoaște literal
         if (!voiceState.autocitireMode) {
-            console.log(`🔄 Incremental match (${Math.round(globalMatch.similarity * 100)}%):`, globalMatch);
-            console.log('   Calling handleDetectedReference NOW...');
-            handleDetectedReference(globalMatch, 'content-incremental', transcript);
+            const litCfg = (window.microphoneConfig && window.microphoneConfig.literal) || { sameChapter: 5, sameBook: 35, otherBook: 89 };
+            const ctx = voiceState.currentContext || {};
+            // Determinar el umbral en función de la proximidad (porcentaje convertido a 0..1)
+            let thresholdPct = litCfg.otherBook || 89;
+            try {
+                if (ctx.book && ctx.chapter && globalMatch.book === ctx.book && globalMatch.chapter === ctx.chapter) {
+                    thresholdPct = litCfg.sameChapter;
+                } else if (ctx.book && globalMatch.book === ctx.book) {
+                    thresholdPct = litCfg.sameBook;
+                } else {
+                    thresholdPct = litCfg.otherBook;
+                }
+            } catch (e) {
+                thresholdPct = litCfg.otherBook;
+            }
+
+            const threshold = Math.max(0, Math.min(1, (thresholdPct || 0) / 100));
+            console.log(`🔎 Literal mode threshold based on context: ${thresholdPct}% -> ${threshold}`);
+                // Acceptance based on coverage between spoken words and verse words
+                const cov = computeSpokenVerseCoverage(transcript, globalMatch);
+                const covPct = Math.round((cov.coverage || 0) * 100);
+                console.log(`🔎 Incremental coverage check: ${covPct}% (${cov.spokenCount}/${cov.verseCount}) for ${globalMatch.book} ${globalMatch.chapter}:${globalMatch.verse}`);
+
+                if ((cov.coverage || 0) >= (thresholdPct / 100)) {
+                    console.log(`🔄 Incremental match accepted by COVERAGE ${covPct}% >= ${thresholdPct}%:` , globalMatch);
+                    handleDetectedReference(globalMatch, 'content-incremental-coverage', transcript);
+                    return;
+                }
+
+                console.log(`🔄 Incremental match rejected by COVERAGE ${covPct}% < ${thresholdPct}% (similarity ${Math.round(globalMatch.similarity*100)}%)`);
+                // Si no pasa el umbral, guardar en cache si la similitud es moderada
+                if (globalMatch.similarity > Math.max(0.5, threshold * 0.6)) {
+                    console.log('🔄 Incremental match below coverage but similarity moderate, caching for improvement:', globalMatch);
+                    voiceState.incrementalMatchCache = globalMatch;
+                } else {
+                    console.log('❌ Incremental match below acceptance threshold, ignoring:', Math.round(globalMatch.similarity*100) + '%');
+                }
             return;
         }
-        
+
         // Modo Autocitire: solo mostrar si la similitud es alta (>70%)
         if (globalMatch.similarity > 0.7) {
             console.log('🔄 Incremental match (Autocitire):', globalMatch);
@@ -1361,14 +1674,23 @@ function searchInCompleteBible(spokenText) {
                     chapter: verse.chapter,
                     verse: verse.verse,
                     similarity: finalScore,
-                    matchedWindow: window.words.join(' ')
+                    matchedWindow: window.words.join(' '),
+                    _scoreBreakdown: {
+                        windowScore: windowScore,
+                        sizeBonus: sizeBonus,
+                        ngramBonus: ngramBonus,
+                        finalScore: finalScore
+                    }
                 };
+                console.log('  ▶ New bestMatch:', bestMatch.book, bestMatch.chapter + ':' + bestMatch.verse, 'breakdown:', bestMatch._scoreBreakdown);
             }
         }
     }
     
     if (bestMatch) {
-        console.log(`🎯 Found match with ${(bestScore * 100).toFixed(1)}% similarity: ${bestMatch.book} ${bestMatch.chapter}:${bestMatch.verse}`);
+        // Normalizar similitud a 0..1 (evitar valores >100% por los bonuses)
+        bestMatch.similarity = Math.max(0, Math.min(1, bestMatch.similarity || bestScore));
+        console.log(`🎯 Found match with ${(bestMatch.similarity * 100).toFixed(1)}% similarity: ${bestMatch.book} ${bestMatch.chapter}:${bestMatch.verse}`);
         console.log(`   Matched window: "${bestMatch.matchedWindow}"`);
         return bestMatch;
     }
@@ -1404,6 +1726,74 @@ function calculateWindowMatch(windowWords, verseWords) {
     }
     
     return bestMatch;
+}
+
+// Comprobación estricta basada en texto normalizado: útil cuando el usuario
+// exige 100% (o comportamiento similar). Devuelve true si el transcript
+// corresponde exactamente al versículo (o si uno contiene al otro).
+function isStrictNormalizedMatch(transcript, match) {
+    try {
+        const normalizedSpoken = normalizeText(transcript).replace(/\s+/g, ' ').trim();
+        // Buscar versículo en el índice por libro/capítulo/versículo
+        const verse = voiceState.bibleVerses.find(v => v.book === match.book && v.chapter === match.chapter && v.verse === match.verse);
+        if (!verse) {
+            console.log('isStrictNormalizedMatch: verse not found in bibleVerses for', match);
+            return false;
+        }
+        const verseNorm = (verse.normalizedText || normalizeText(verse.text || '')).replace(/\s+/g, ' ').trim();
+        console.log('isStrictNormalizedMatch:', {
+            spoken: normalizedSpoken,
+            verse: verseNorm
+        });
+
+        // Aceptar si son exactamente iguales o si uno contiene al otro (por seguridad)
+        // Además comprobar la cobertura de la ventana matcheada respecto al versículo.
+        const matchedWindowNorm = (match.matchedWindow || '').length ? normalizeText(match.matchedWindow).replace(/\s+/g, ' ').trim() : null;
+        console.log('isStrictNormalizedMatch: matchedWindowNorm =', matchedWindowNorm);
+
+        if (matchedWindowNorm) {
+            // Coverage: cuántas palabras de la ventana corresponden al total de palabras significativas del versículo
+            const matchedWords = matchedWindowNorm.split(' ').filter(w => w.length > 0);
+            const verseWords = (verse.significantWords && verse.significantWords.length) ? verse.significantWords : verseNorm.split(' ').filter(w => w.length > 0);
+            const coverage = verseWords.length > 0 ? (matchedWords.length / verseWords.length) : 0;
+            console.log('isStrictNormalizedMatch: coverage:', coverage.toFixed(3), `(matched ${matchedWords.length} / verse ${verseWords.length})`);
+
+            // Aceptar si la ventana normalizada aparece dentro del spoken o del versículo
+            if (normalizedSpoken.includes(matchedWindowNorm) || verseNorm.includes(matchedWindowNorm)) {
+                // Además, si la cobertura es alta (>=90%) lo consideramos match estricto
+                if (coverage >= 0.9) {
+                    console.log('isStrictNormalizedMatch: matchedWindow found AND coverage >= 90% -> ACCEPT');
+                    return true;
+                }
+                console.log('isStrictNormalizedMatch: matchedWindow found but coverage < 90% -> REJECT strict');
+                return false;
+            }
+        }
+
+        // Fallback: igualdad o includes en cualquiera de las direcciones
+        return normalizedSpoken === verseNorm || verseNorm.includes(normalizedSpoken) || normalizedSpoken.includes(verseNorm);
+    } catch (e) {
+        console.warn('isStrictNormalizedMatch error', e);
+        return false;
+    }
+}
+
+// Calcular cobertura: cuántas palabras del transcript corresponden al total de palabras
+// significativas del versículo detectado. Devuelve {coverage, spokenCount, verseCount}
+function computeSpokenVerseCoverage(transcript, match) {
+    try {
+        const spokenWords = normalizeText(transcript).split(/\s+/).filter(w => w.length > 0);
+        const verse = voiceState.bibleVerses.find(v => v.book === match.book && v.chapter === match.chapter && v.verse === match.verse);
+        if (!verse) return { coverage: 0, spokenCount: spokenWords.length, verseCount: 0 };
+        const verseWords = (verse.significantWords && verse.significantWords.length) ? verse.significantWords : (normalizeText(verse.text || '').split(/\s+/).filter(w => w.length > 0));
+        const spokenCount = spokenWords.length;
+        const verseCount = verseWords.length;
+        const coverage = verseCount > 0 ? (spokenCount / verseCount) : 0;
+        return { coverage, spokenCount, verseCount };
+    } catch (e) {
+        console.warn('computeSpokenVerseCoverage error', e);
+        return { coverage: 0, spokenCount: 0, verseCount: 0 };
+    }
 }
 
 // Búsqueda rápida por n-gramas
@@ -2128,6 +2518,49 @@ function updateLiveSearchResult(match) {
     const text = document.getElementById('voice-search-text');
     
     if (container && text) {
+        // Calcular umbral según configuración y contexto actual
+        const litCfg = (window.microphoneConfig && window.microphoneConfig.literal) || { sameChapter: 5, sameBook: 35, otherBook: 89 };
+        const ctx = voiceState.currentContext || {};
+        let thresholdPct = litCfg.otherBook || 89;
+        try {
+            if (ctx.book && ctx.chapter && match.book === ctx.book && match.chapter === ctx.chapter) {
+                thresholdPct = litCfg.sameChapter;
+            } else if (ctx.book && match.book === ctx.book) {
+                thresholdPct = litCfg.sameBook;
+            } else {
+                thresholdPct = litCfg.otherBook;
+            }
+        } catch (e) {
+            thresholdPct = litCfg.otherBook;
+        }
+
+        const threshold = Math.max(0, Math.min(1, (thresholdPct || 0) / 100));
+
+        // En modo Autocitire usar regla distinta (mostrar solo si muy alta confianza)
+        if (voiceState.autocitireMode) {
+            if (match.similarity < 0.7) {
+                console.log(`updateLiveSearchResult: provisional match suppressed (Autocitire) ${Math.round(match.similarity*100)}% < 70%`);
+                container.style.display = 'none';
+                return;
+            }
+        } else {
+            // Modo literal/normal: aplicar umbral configurado.
+            // Regla especial: si thresholdPct === 0, mostrar solo si similarity > 0 (evitar aceptar similarity == 0)
+            if (thresholdPct === 0) {
+                if (!(match.similarity > 0)) {
+                    console.log(`updateLiveSearchResult: provisional match suppressed ${Math.round(match.similarity*100)}% <= threshold ${thresholdPct}% (special 0%)`);
+                    container.style.display = 'none';
+                    return;
+                }
+            } else {
+                if (match.similarity < threshold) {
+                    console.log(`updateLiveSearchResult: provisional match suppressed ${Math.round(match.similarity*100)}% < threshold ${Math.round(threshold*100)}%`);
+                    container.style.display = 'none';
+                    return;
+                }
+            }
+        }
+
         const refText = `${match.book} ${match.chapter}:${match.verse}`;
         const confidence = Math.round(match.similarity * 100);
         text.textContent = `🔍 ${refText} (${confidence}%)`;
@@ -2175,5 +2608,28 @@ function updateAutocitireReference(newRef) {
     
     console.log('[Autocitire] Nuevas últimas palabras:', voiceState.autocitireLastWords);
 }
+
+// Permitir que otras partes de la app establezcan el contexto actual de detección
+function setVoiceCurrentContext(newRef) {
+    try {
+        if (!newRef || !newRef.book) return;
+        voiceState.currentContext = {
+            book: newRef.book,
+            chapter: newRef.chapter || null,
+            verse: newRef.verse || null,
+            timestamp: Date.now()
+        };
+        console.log('[voiceState] currentContext updated via setVoiceCurrentContext:', voiceState.currentContext);
+        // Cargar capítulo para comparaciones si es necesario
+        if (newRef.book && newRef.chapter) {
+            loadChapterVerses(newRef.book, newRef.chapter);
+        }
+    } catch (e) {
+        console.warn('setVoiceCurrentContext failed', e);
+    }
+}
+
+// Exponer la función a window para que script.js pueda invocarla
+window.setVoiceCurrentContext = setVoiceCurrentContext;
 
 console.log('✅ Voice recognition module loaded (integrated mode)');

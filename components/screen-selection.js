@@ -148,13 +148,21 @@ function initializeSelectors() {
                     const totalVerses = bookData[chapter] || 0;
 
                     if (book && !isNaN(chapter) && !isNaN(verseNum) && verseNum >= 1 && verseNum <= totalVerses) {
+                        // diagnostic log: user selected a valid verse
+                        try { console.log('screen-selection: user selected', { book, chapter, verse: verseNum }); } catch (e) { /* ignore */ }
                         // use setReference so the global cached reference (_currentReference) is updated
                         // and handlers that depend on selected-* elements run consistently.
                         try {
-                            setReference(book, chapter, verseNum, true);
+                            if (typeof setReference === 'function') {
+                                console.log('screen-selection: calling setReference');
+                                setReference(book, chapter, verseNum, true);
+                            } else {
+                                console.warn('screen-selection: setReference not available, falling back');
+                                setTimeout(() => goToReadingScreen(book, chapter, verseNum), 40);
+                            }
                         } catch (e) {
                             // fallback to goToReadingScreen if setReference is not available for some reason
-                            try { setTimeout(() => goToReadingScreen(book, chapter, verseNum), 40); } catch (ee) { /* ignore */ }
+                            try { console.warn('screen-selection: setReference threw, fallback to goToReadingScreen', e); setTimeout(() => goToReadingScreen(book, chapter, verseNum), 40); } catch (ee) { /* ignore */ }
                         }
                     } else {
                         const statusEl = root?.querySelector('#fetch-status-reading') || document.getElementById('fetch-status-reading');

@@ -1,0 +1,41 @@
+<!-- Component: Songs (simple local) -->
+<template id="screen-songs-template">
+  <div id="screen-songs" class="screen songs-screen">
+    <div class="songs-wrap">
+      <aside class="songs-aside">
+        <div class="search-center">
+          <div class="search-icon">🔍</div>
+          <h1 class="search-title">Căutare titluri</h1>
+          <div class="search-box">
+            <label for="songs-search-input" class="visually-hidden">Căutați cântări</label>
+            <input id="songs-search-input" type="search" placeholder="Introduceți termenul de căutare..." aria-label="Căutați cântări" autocomplete="off">
+            <button id="songs-search-btn" class="search-btn">Căutați</button>
+          </div>
+          <div id="songs-loading" class="songs-loading" aria-hidden="true">Cargando...</div>
+          <div id="songs-error" class="songs-error" role="alert" aria-hidden="true"></div>
+          <div id="songs-status" class="songs-status" aria-hidden="true" style="margin-top:6px;color:#6b4f3c;font-weight:600;"></div>
+          <div id="songs-suggestions" class="songs-suggestions" role="listbox" aria-label="Sugestiones" tabindex="-1"></div>
+
+          <div id="songs-list" class="songs-list" role="listbox" tabindex="0" aria-label="Resultados">
+            <!-- items injected by JS -->
+          </div>
+        </div>
+      </aside>
+
+      <main class="songs-main">
+        <div class="song-header">
+          <h2 id="song-title" class="song-title">Selecciona una canción</h2>
+        </div>
+        <div class="song-card">
+          <div class="book">
+            <div class="book-inner">
+              <div class="book-page">
+                <div id="song-lyrics" class="song-lyrics">Selecciona una canción para ver los versos aquí.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</template>

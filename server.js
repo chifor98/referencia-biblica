@@ -14,6 +14,15 @@ const MIME_TYPES = {
     '.xml': 'application/xml'
 };
 
+// Simple cache for external cantari API
+const CANTARI_CACHE = {
+    data: null,
+    timestamp: 0,
+    ttl: Number(process.env.CANTARI_CACHE_TTL || 12 * 60 * 60) // seconds, default 12h
+};
+const DATA_DIR = path.join(__dirname, 'data');
+if (!fs.existsSync(DATA_DIR)) try { fs.mkdirSync(DATA_DIR); } catch (e) { /* ignore */ }
+
 // Configuración de API (crea un archivo .env o define aquí tu API key)
 // Para Groq: https://console.groq.com/keys
 // Para Gemini: https://makersuite.google.com/app/apikey
@@ -39,6 +48,18 @@ const server = http.createServer((req, res) => {
     // Health check endpoint
     if (req.url === '/api/health' && req.method === 'GET') {
         sendJSON(res, 200, { status: 'ok', provider: AI_CONFIG.provider });
+        return;
+    }
+
+    // API proxy: cantari list (cached)
+    if (req.url.startsWith('/api/cantari') && req.method === 'GET') {
+        handleCantariProxy(req, res);
+        return;
+    }
+
+    // API force refresh
+    if (req.url === '/api/cantari/refresh' && req.method === 'GET') {
+        forceRefreshCantari(req, res);
         return;
     }
 
@@ -268,6 +289,64 @@ function makeHTTPSRequest(options, data, callback) {
     req.on('error', callback);
     req.write(data);
     req.end();
+}
+
+// ===== CANTARI PROXY =====
+function handleCantariProxy(req, res) {
+    // parse query params
+    const urlObj = new URL(req.url, `http://${req.headers.host}`);
+    const params = Object.fromEntries(urlObj.searchParams.entries());
+    const categorie = params.categorie || 'pdc';
+    const limita = params.limita || '500';
+
+    // check cache TTL
+    const now = Math.floor(Date.now() / 1000);
+    if (CANTARI_CACHE.data && (now - CANTARI_CACHE.timestamp) < CANTARI_CACHE.ttl) {
+        sendJSON(res, 200, { success: true, source: 'cache', data: CANTARI_CACHE.data });
+        return;
+    }
+
+    const token = process.env.CANTARI_TOKEN || '123';
+    const external = `https://www.cantaricrestine.ro/api.php?token=${encodeURIComponent(token)}&categorie=${encodeURIComponent(categorie)}&limita=${encodeURIComponent(limita)}`;
+
+    https.get(external, (extRes) => {
+        let body = '';
+        extRes.on('data', chunk => body += chunk);
+        extRes.on('end', () => {
+            try {
+                const parsed = JSON.parse(body);
+                CANTARI_CACHE.data = parsed;
+                CANTARI_CACHE.timestamp = Math.floor(Date.now() / 1000);
+                // persist to disk for quick warm start
+                try { fs.writeFileSync(path.join(DATA_DIR, 'cantari-pdc.json'), JSON.stringify(parsed)); } catch (e) { /* ignore disk write errors */ }
+                sendJSON(res, 200, { success: true, source: 'remote', data: parsed });
+            } catch (e) {
+                console.error('cantari proxy parse error', e);
+                sendJSON(res, 502, { success: false, error: 'Invalid response from remote API' });
+            }
+        });
+    }).on('error', (err) => {
+        console.error('cantari external request error', err);
+        // try to fallback to disk cache
+        try {
+            const f = path.join(DATA_DIR, 'cantari-pdc.json');
+            if (fs.existsSync(f)) {
+                const fileData = JSON.parse(fs.readFileSync(f, 'utf8'));
+                CANTARI_CACHE.data = fileData;
+                CANTARI_CACHE.timestamp = Math.floor(Date.now() / 1000);
+                sendJSON(res, 200, { success: true, source: 'disk', data: fileData });
+                return;
+            }
+        } catch (e) { /* ignore */ }
+        sendJSON(res, 502, { success: false, error: 'Failed to fetch remote API' });
+    });
+}
+
+function forceRefreshCantari(req, res) {
+    // simple wrapper that clears cache and calls handler
+    CANTARI_CACHE.data = null;
+    CANTARI_CACHE.timestamp = 0;
+    handleCantariProxy(req, res);
 }
 
 function sendJSON(res, statusCode, data) {

@@ -78,9 +78,41 @@ const bibleStructure = {
 // --- LÓGICA DE VISTAS (PANTALLAS) ---
 
 function goToReadingScreen(book, chapter, verse) {
-    // Cambiar a pantalla de lectura
-    document.getElementById('screen-selection').classList.remove('active');
-    document.getElementById('screen-reading').classList.add('active');
+    // Cambiar a pantalla de lectura: asegurarnos de que sólo la pantalla de lectura
+    // esté marcada como active (remover active de cualquier otra pantalla).
+    try {
+        // Prefer using the central NavigationManager if available so navigation is consistent
+        // across menu state and screens. This will also clear any internal pending navigation.
+        if (window.NavManager && typeof window.NavManager.navigate === 'function') {
+            try {
+                // best-effort async navigate (don't await to keep UI responsive)
+                window.NavManager.navigate('screen-reading');
+            } catch (e) { console.warn('NavManager.navigate error (ignored)', e); }
+        }
+
+        // If templates weren't injected yet, try to trigger them once (best-effort)
+        if (!document.getElementById('screen-reading') && typeof applyScreenTemplates === 'function') {
+            try { applyScreenTemplates(); } catch (e) { /* ignore */ }
+        }
+
+        // Defensive: remove active from any other screen and mark reading active
+        document.querySelectorAll('.screen.active').forEach(s => s.classList.remove('active'));
+        const readingEl = document.getElementById('screen-reading');
+        if (readingEl) readingEl.classList.add('active');
+
+        // Update menu buttons to reflect current screen
+        try {
+            document.querySelectorAll('.menu-bar .menu-btn.active').forEach(b => {
+                b.classList.remove('active'); b.removeAttribute('aria-current');
+            });
+            const btn = document.querySelector('.menu-bar .menu-btn[data-screen="screen-reading"]');
+            if (btn) { btn.classList.add('active'); btn.setAttribute('aria-current','page'); }
+        } catch (e) { /* ignore */ }
+
+        console.log('goToReadingScreen: activated reading screen', { book, chapter, verse });
+    } catch (e) {
+        console.warn('goToReadingScreen DOM activation error (ignored):', e);
+    }
     
     // Mostrar referencia en pantalla de lectura
     const combined = `${book} ${chapter}:${verse}`;
@@ -285,6 +317,7 @@ function setReference(book, chapter, verse, shouldFetch = true) {
     if (!bibleStructure[book]) return;
     // update cached current reference first
     _currentReference = { book, chapter, verse };
+    try { console.log('setReference: called', { book, chapter, verse, shouldFetch }); } catch (e) { /* ignore */ }
 
     const selBookEl = document.getElementById('selected-book');
     if (selBookEl) selBookEl.textContent = book;
@@ -311,6 +344,17 @@ function setReference(book, chapter, verse, shouldFetch = true) {
     // Notificar cambio de referencia para actualizar Autocitire
     if (typeof updateAutocitireReference === 'function') {
         updateAutocitireReference({ book, chapter, verse });
+    }
+
+    // Informar al módulo de voz del nuevo contexto para que los umbrales
+    // (sameChapter / sameBook / otherBook) se apliquen respecto al versículo
+    // que actualmente se muestra en la pantalla de lectura.
+    try {
+        if (window.setVoiceCurrentContext && typeof window.setVoiceCurrentContext === 'function') {
+            window.setVoiceCurrentContext({ book, chapter, verse });
+        }
+    } catch (e) {
+        console.warn('setVoiceCurrentContext error (ignored):', e);
     }
 
     // Ir a pantalla de lectura
@@ -396,6 +440,25 @@ function showTempDropdown(anchorEl, items, onSelect = () => {}) {
     dd.style.left = left + 'px';
     dd.style.top = top + 'px';
     dd.style.minWidth = Math.max(120, rect.width) + 'px';
+    // ensure dropdown never grows the document: limit height and allow scroll
+    dd.style.maxHeight = 'calc(100vh - 40px)';
+    dd.style.overflowY = 'auto';
+
+    // If the dropdown would overflow the viewport bottom, flip it above the anchor
+    setTimeout(() => {
+        try {
+            const dRect = dd.getBoundingClientRect();
+            const gap = 8; // minimal gap to viewport edge
+            if (dRect.bottom > window.innerHeight - gap) {
+                // position above anchor if there's space
+                const aboveTop = rect.top + window.scrollY - dd.offsetHeight - 6;
+                // clamp inside viewport
+                dd.style.top = Math.max(gap, aboveTop) + 'px';
+            }
+        } catch (e) {
+            /* ignore positioning errors */
+        }
+    }, 10);
 
     // click handler
     const onDocClick = (ev) => {
@@ -455,8 +518,8 @@ function showGridPicker(anchorEl, items, onSelect = () => {}, options = {}) {
     footer.className = 'grid-picker-footer';
     const info = document.createElement('div'); info.className = 'grid-picker-info';
     const pager = document.createElement('div'); pager.className = 'grid-picker-pager';
-    const prevBtn = document.createElement('button'); prevBtn.className = 'grid-picker-btn'; prevBtn.textContent = 'Prev';
-    const nextBtn = document.createElement('button'); nextBtn.className = 'grid-picker-btn'; nextBtn.textContent = 'Next';
+    const prevBtn = document.createElement('button'); prevBtn.className = 'grid-picker-btn'; prevBtn.type = 'button'; prevBtn.innerHTML = '◀';
+    const nextBtn = document.createElement('button'); nextBtn.className = 'grid-picker-btn'; nextBtn.type = 'button'; nextBtn.innerHTML = '▶';
     pager.appendChild(prevBtn); pager.appendChild(nextBtn);
     footer.appendChild(info); footer.appendChild(pager);
     container.appendChild(footer);
@@ -512,6 +575,23 @@ function showGridPicker(anchorEl, items, onSelect = () => {}, options = {}) {
     let left = rect.left + window.scrollX;
     container.style.left = left + 'px';
     container.style.top = top + 'px';
+
+    // limit height so the picker won't force the document to grow; enable internal scrolling
+    container.style.maxHeight = 'calc(100vh - 40px)';
+    container.style.overflowY = 'auto';
+
+    // vertical collision: if the picker would overflow below the viewport, flip it above the anchor
+    setTimeout(() => {
+        try {
+            const cRect = container.getBoundingClientRect();
+            const gap = 8;
+            if (cRect.bottom > window.innerHeight - gap) {
+                // place above the anchor
+                const aboveTop = rect.top + window.scrollY - container.offsetHeight - 6;
+                container.style.top = Math.max(gap, aboveTop) + 'px';
+            }
+        } catch (e) { /* ignore */ }
+    }, 20);
 
     // adjust if overflowing right
     setTimeout(() => {
@@ -680,37 +760,6 @@ function displayVerse(data, book, chapter, verse, statusEl, textEl) {
                                         } catch (e) { console.warn('temp book select error', e); }
                                     });
                                 }
-                                    try {
-                                        const bookName2 = item && item.value ? String(item.value) : null;
-                                        if (!bookName2) return;
-                                        // preserve previous chapter/verse when possible
-                                        const prevChap = parseInt(document.getElementById('small-selected-chapter')?.textContent, 10) || parseInt(chapter, 10) || 1;
-                                        const prevVerse = parseInt(document.getElementById('small-selected-verse')?.textContent, 10) || parseInt(verse, 10) || 1;
-
-                                        const bookData = bibleStructure[bookName2] || {};
-                                        const chaptersList = Object.keys(bookData).map(n=>parseInt(n,10)).sort((a,b)=>a-b);
-
-                                        let newChap, newVerse;
-                                        if (bookData && typeof bookData[prevChap] !== 'undefined') {
-                                            // same chapter exists in new book
-                                            const totalVerses = bookData[prevChap] || 0;
-                                            newChap = prevChap;
-                                            if (totalVerses >= prevVerse) newVerse = prevVerse; else newVerse = 1;
-                                        } else {
-                                            // fallback to first chapter
-                                            newChap = chaptersList.length ? chaptersList[0] : 1;
-                                            newVerse = 1;
-                                        }
-
-                                        const sb = document.getElementById('small-selected-book'); if (sb) sb.textContent = bookName2;
-                                        const sc = document.getElementById('small-selected-chapter'); if (sc) sc.textContent = String(newChap);
-                                        const sv = document.getElementById('small-selected-verse'); if (sv) sv.textContent = String(newVerse);
-
-                                        if (typeof handleSmallBookSelection === 'function') try { handleSmallBookSelection(bookName2); } catch (e) { console.warn(e); }
-                                        // load selected verse of the new book/chapter
-                                        try { setReference(bookName2, newChap, newVerse, true); } catch (e) { console.warn('setReference after temp book select failed', e); }
-                                    } catch (e) { console.warn('temp book select error', e); }
-                                });
                             } catch (e) { console.warn('temp dropdown book fallback failed', e); }
                         }
                     } catch (e) { console.warn(e); }
@@ -762,18 +811,6 @@ function displayVerse(data, book, chapter, verse, statusEl, textEl) {
                                                 } catch (e) { console.warn('temp chapter select error', e); }
                                             });
                                         }
-                                            try {
-                                                const selChap = item && item.value ? parseInt(item.value, 10) : NaN;
-                                                if (isNaN(selChap)) return;
-                                                const sc = document.getElementById('small-selected-chapter'); if (sc) sc.textContent = String(selChap);
-                                                if (typeof handleSmallChapterSelection === 'function') try { handleSmallChapterSelection(String(selChap)); } catch (e) { console.warn(e); }
-                                                // load verse: keep previous verse only if this chapter has that many verses, otherwise set to 1
-                                                const prevVerse = parseInt(document.getElementById('small-selected-verse')?.textContent, 10) || parseInt(verse, 10) || 1;
-                                                const totalVerses = (bibleStructure[book] && bibleStructure[book][selChap]) || 0;
-                                                const vToUse = (totalVerses >= prevVerse) ? prevVerse : 1;
-                                                try { setReference(book, selChap, vToUse, true); } catch (e) { console.warn('setReference after temp chapter select failed', e); }
-                                            } catch (e) { console.warn('temp chapter select error', e); }
-                                        });
                                 } catch (e) { console.warn('temp dropdown chapter fallback failed', e); }
                             }
                         } catch (e) { console.warn(e); }
@@ -1325,7 +1362,7 @@ async function loadScreenTemplates() {
     try {
         const base = 'components';
         const names = [
-            'screen-selection.html', 'screen-reading.html', 'screen-voice.html',
+            'screen-selection.html', 'screen-reading.html', 'screen-voice.html', 'screen-songs.html',
             'home-cover.html', 'mic-settings.html',
             'selection-left.html', 'selection-nav.html',
             'reading-left.html', 'reading-sheet.html', 'reading-nav.html',
@@ -1422,6 +1459,22 @@ function applyScreenTemplates() {
             const container = document.getElementById('screen-voice');
             if (container && container.parentNode) {
                 const clone = voiceTpl.content.cloneNode(true);
+                const newNode = clone.firstElementChild || clone.firstChild;
+                if (newNode) {
+                    container.parentNode.replaceChild(newNode, container);
+                } else {
+                    container.innerHTML = '';
+                    container.appendChild(clone);
+                }
+            }
+        }
+
+        // Inject songs screen template if available
+        const songsTpl = _screenTemplates['screen-songs-template'];
+        if (songsTpl) {
+            const container = document.getElementById('screen-songs');
+            if (container && container.parentNode) {
+                const clone = songsTpl.content.cloneNode(true);
                 const newNode = clone.firstElementChild || clone.firstChild;
                 if (newNode) {
                     container.parentNode.replaceChild(newNode, container);

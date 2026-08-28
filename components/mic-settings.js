@@ -138,6 +138,8 @@ function syncMicSliderInputs() {
             // Slider cambia input
             slider.addEventListener('input', () => {
                 input.value = slider.value;
+                // live-apply numeric changes for literal/ia percentages so detection uses current values
+                try { liveApplyMicSetting(pair.slider, slider.value); } catch (e) { /* ignore */ }
             });
 
             // Input cambia slider
@@ -153,9 +155,53 @@ function syncMicSliderInputs() {
                 
                 slider.value = value;
                 input.value = value;
+                try { liveApplyMicSetting(pair.slider, value); } catch (e) { /* ignore */ }
             });
         }
     });
+}
+
+// Helper: clamp percentage values and update global config live, dispatching event so voice system
+// picks them up immediately without needing to press Save.
+function liveApplyMicSetting(sliderSelector, value) {
+    // only care about literal and ia percent sliders for now
+    if (!window.microphoneConfig) window.microphoneConfig = window.microphoneConfig || { literal: {}, ia: {} };
+
+    const map = {
+        '#literal-sameChapter': ['literal', 'sameChapter'],
+        '#literal-sameBook': ['literal', 'sameBook'],
+        '#literal-otherBook': ['literal', 'otherBook'],
+        '#ia-confidence': ['ia', 'confidence']
+    };
+
+    const entry = map[sliderSelector];
+    if (!entry) return;
+
+    const section = entry[0];
+    const key = entry[1];
+
+    // sanitize number
+    let n = Number(value);
+    if (isNaN(n)) n = 0;
+    // clamp 0..100 for percentage params
+    n = Math.max(0, Math.min(100, Math.round(n)));
+
+    window.microphoneConfig[section] = window.microphoneConfig[section] || {};
+    window.microphoneConfig[section][key] = n;
+
+    // persist to localStorage for immediate consistency
+    try {
+        if (section === 'literal') {
+            if (key === 'sameChapter') localStorage.setItem('mic_literal_sameChapter', String(n));
+            if (key === 'sameBook') localStorage.setItem('mic_literal_sameBook', String(n));
+            if (key === 'otherBook') localStorage.setItem('mic_literal_otherBook', String(n));
+        } else if (section === 'ia' && key === 'confidence') {
+            localStorage.setItem('mic_ia_confidence', String(n));
+        }
+    } catch (e) { /* ignore storage errors */ }
+
+    // notify listeners
+    try { window.dispatchEvent(new CustomEvent('microphoneConfigChanged', { detail: window.microphoneConfig })); } catch (e) { /* ignore */ }
 }
 
 function setupMicActionButtons() {
@@ -252,9 +298,17 @@ function saveMicSettings() {
     localStorage.setItem('mic_autocite_loop', window.microphoneConfig.autocite.loop);
 
     // Guardar Literal
-    window.microphoneConfig.literal.sameChapter = parseInt((q('#literal-sameChapter-val') && q('#literal-sameChapter-val').value) || window.microphoneConfig.literal.sameChapter);
-    window.microphoneConfig.literal.sameBook = parseInt((q('#literal-sameBook-val') && q('#literal-sameBook-val').value) || window.microphoneConfig.literal.sameBook);
-    window.microphoneConfig.literal.otherBook = parseInt((q('#literal-otherBook-val') && q('#literal-otherBook-val').value) || window.microphoneConfig.literal.otherBook);
+    // sanitize and clamp percentages (0..100)
+    const clampPct = (v, fallback) => {
+        let n = parseInt(v);
+        if (isNaN(n)) n = (typeof fallback === 'number' ? fallback : 0);
+        n = Math.max(0, Math.min(100, n));
+        return n;
+    };
+
+    window.microphoneConfig.literal.sameChapter = clampPct((q('#literal-sameChapter-val') && q('#literal-sameChapter-val').value), window.microphoneConfig.literal.sameChapter);
+    window.microphoneConfig.literal.sameBook = clampPct((q('#literal-sameBook-val') && q('#literal-sameBook-val').value), window.microphoneConfig.literal.sameBook);
+    window.microphoneConfig.literal.otherBook = clampPct((q('#literal-otherBook-val') && q('#literal-otherBook-val').value), window.microphoneConfig.literal.otherBook);
     window.microphoneConfig.literal.caseSensitive = !!(q('#literal-caseSensitive') && q('#literal-caseSensitive').checked);
 
     localStorage.setItem('mic_literal_sameChapter', window.microphoneConfig.literal.sameChapter);
@@ -263,7 +317,7 @@ function saveMicSettings() {
     localStorage.setItem('mic_literal_caseSensitive', window.microphoneConfig.literal.caseSensitive);
 
     // Guardar IA
-    window.microphoneConfig.ia.confidence = parseInt((q('#ia-confidence-val') && q('#ia-confidence-val').value) || window.microphoneConfig.ia.confidence);
+    window.microphoneConfig.ia.confidence = clampPct((q('#ia-confidence-val') && q('#ia-confidence-val').value), window.microphoneConfig.ia.confidence);
     window.microphoneConfig.ia.model = (q('#ia-model') && q('#ia-model').value) || window.microphoneConfig.ia.model;
     window.microphoneConfig.ia.timeout = parseInt((q('#ia-timeout-val') && q('#ia-timeout-val').value) || window.microphoneConfig.ia.timeout);
     window.microphoneConfig.ia.contextual = !!(q('#ia-contextual') && q('#ia-contextual').checked);
