@@ -1,0 +1,160 @@
+.screen {
+  background: var(--parchment-gradient);
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  padding: 0 0 180px 0;
+  height: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.mainSlot {
+  min-width: 0;
+  width: 100%;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sheet {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.verseContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.verseText {
+  font-size: 5rem;
+  line-height: 1.8;
+  font-family: var(--font-serif);
+  color: #6b4328;
+  text-align: center;
+  width: 100%;
+  max-width: none;
+  /* Sin esto, el texto crecía más alto que .verseContainer y su propio
+     `overflow: auto` nunca llegaba a activarse (una caja con alto automático
+     no se desborda de sí misma) — versículos largos quedaban recortados por
+     el `overflow: hidden` del contenedor padre en vez de mostrarse enteros. */
+  max-height: 100%;
+  box-sizing: border-box;
+  overflow: auto;
+  align-self: stretch;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+  will-change: transform, opacity;
+}
+
+.status {
+  font-size: 3rem;
+  color: #cb7845;
+  margin-top: 12px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.status[data-empty='true'] {
+  font-size: 3rem;
+}
+
+.refPart {
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  display: inline-block;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: text-decoration 120ms ease, background-color 120ms ease;
+}
+
+.refPart:hover {
+  text-decoration: underline;
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.refColon {
+  color: inherit;
+}
+
+@keyframes flipInRight {
+  0% {
+    transform: translateX(60%) rotateY(15deg);
+    opacity: 0;
+  }
+  60% {
+    transform: translateX(10%) rotateY(5deg);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(0) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes flipInLeft {
+  0% {
+    transform: translateX(-60%) rotateY(-15deg);
+    opacity: 0;
+  }
+  60% {
+    transform: translateX(-10%) rotateY(-5deg);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(0) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+.flipInRight {
+  animation: flipInRight 360ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.flipInLeft {
+  animation: flipInLeft 360ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@media (max-width: 767px) {
+  .verseText {
+    font-size: 1.6rem;
+    line-height: 1.5;
+  }
+  .status {
+    font-size: 1.2rem;
+  }
+  .grid {
+    padding-bottom: 220px;
+  }
+}

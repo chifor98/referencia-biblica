@@ -1,121 +1,50 @@
-# 🚀 Guía de Deployment - Backend en Render.com
+# 🚀 Guía de Deployment — Render.com
 
-## Paso 1: Preparar el Repositorio
+La app es ahora un único servicio Next.js (frontend + API routes juntos) — ya no hay un frontend estático separado (GitHub Pages) ni un `config.js` con la URL del backend: todo se sirve desde el mismo dominio.
 
-1. Asegúrate de que todos los cambios estén commiteados en GitHub:
+## Paso 1: Preparar el repositorio
+
 ```bash
 git add .
-git commit -m "Preparar backend para Render deployment"
+git commit -m "Deploy a Render"
 git push origin main
 ```
 
-## Paso 2: Crear Cuenta en Render.com
+## Paso 2: Crear el Web Service en Render
 
-1. Ve a https://render.com
-2. Haz clic en "Get Started for Free"
-3. Regístrate con tu cuenta de GitHub
+1. En https://render.com → **"New +"** → **"Web Service"**.
+2. Conecta el repositorio `referencia-biblica`.
+3. Render detecta `render.yaml` automáticamente (Blueprint) — o configura a mano:
+   - **Runtime**: `Node`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start`
+   - **Plan**: `Free`
 
-## Paso 3: Crear Nuevo Web Service
+`npm run build` genera primero los índices de búsqueda (Biblia + cânturi) a partir de `data/`, y luego compila la app Next.js — no hace falta ningún paso manual adicional.
 
-1. En el dashboard de Render, haz clic en **"New +"** → **"Web Service"**
-2. Conecta tu repositorio de GitHub:
-   - Haz clic en "Connect Account" si es la primera vez
-   - Busca tu repositorio `referencia-biblica`
-   - Haz clic en **"Connect"**
+## Paso 3: Variables de entorno
 
-## Paso 4: Configurar el Service
+En **"Environment Variables"**:
 
-Completa el formulario con estos valores:
+- `GROQ_API_KEY` — clave de [console.groq.com/keys](https://console.groq.com/keys), habilita el modo de voz "Autorecunoaște cu IA". Sin ella, ese modo responde "API key not configured" (igual que en desarrollo local).
+- `CANTARI_TOKEN` — opcional, token de la API de cantaricrestine.ro para refrescar el catálogo de cânturi en vivo. Sin él se usa el token público por defecto.
 
-- **Name**: `referencia-biblica-api` (o el nombre que prefieras)
-- **Region**: Selecciona la más cercana (ej: Frankfurt para Europa)
-- **Branch**: `main`
-- **Root Directory**: (déjalo vacío)
-- **Runtime**: `Node`
-- **Build Command**: `npm install`
-- **Start Command**: `npm start`
-- **Plan**: Selecciona **"Free"** ($0/mes)
+Render asigna `PORT` automáticamente; `next start` lo respeta sin configuración adicional.
 
-## Paso 5: Configurar Variables de Entorno
+## Paso 4: Deploy
 
-En la sección **"Environment Variables"**, agrega:
-
-1. Haz clic en **"Add Environment Variable"**
-2. Agrega tu API key de Groq:
-   - **Key**: `GROQ_API_KEY`
-   - **Value**: (pega tu API key de https://console.groq.com/keys)
-
-3. (Opcional) Si usas Gemini, agrega también:
-   - **Key**: `GEMINI_API_KEY`
-   - **Value**: (tu API key de Gemini)
-
-## Paso 6: Deploy
-
-1. Haz clic en **"Create Web Service"** al final de la página
-2. Render comenzará a desplegar tu aplicación (toma 2-3 minutos)
-3. Verás los logs en tiempo real
-
-## Paso 7: Obtener la URL del Backend
-
-Una vez que el deployment esté completo:
-
-1. En la parte superior verás la URL de tu servicio, algo como:
-   ```
-   https://referencia-biblica-api.onrender.com
-   ```
-2. **Copia esta URL completa**
-
-## Paso 8: Actualizar el Frontend
-
-1. Abre el archivo `config.js` en tu proyecto
-2. Reemplaza la URL del backend:
-   ```javascript
-   baseURL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-       ? 'http://localhost:8000'
-       : 'https://TU-URL-DE-RENDER.onrender.com' // ⚠️ Pega aquí la URL
-   ```
-
-3. Guarda y sube los cambios a GitHub:
-   ```bash
-   git add config.js
-   git commit -m "Actualizar URL del backend"
-   git push origin main
-   ```
-
-## Paso 9: Verificar
-
-1. Espera 1-2 minutos a que GitHub Pages se actualice
-2. Abre tu app en GitHub Pages
-3. Prueba la detección por voz
-4. Ya no deberías ver el error 405
-
-## 📝 Notas Importantes
-
-- **Plan Free de Render**: El servicio se "duerme" después de 15 minutos de inactividad. La primera petición después puede tardar ~30 segundos en responder.
-- **Límites**: 750 horas gratis al mes (suficiente si solo la usas tú)
-- **Logs**: Puedes ver los logs en tiempo real desde el dashboard de Render
-- **Updates**: Cada vez que hagas `git push`, Render automáticamente redesplegarᾠel backend
+Al hacer clic en **"Create Web Service"**, Render construye y despliega. Cada `git push` a la rama configurada vuelve a desplegar automáticamente.
 
 ## 🔍 Troubleshooting
 
-### El servicio dice "Deploy failed"
-- Revisa los logs en Render
-- Asegúrate de que `package.json` tiene el script `"start": "node server.js"`
+### "Deploy failed" durante el build
+- Revisa los logs: si falla `build:bible-index` o `build:songs-index`, confirma que `data/ron-rccv.usfx.xml` y `data/Pe-Drumul-Credintei.json` están commiteados en el repositorio (no están en `.gitignore`).
 
-### Error "GROQ_API_KEY is not defined"
-- Ve a Settings → Environment en Render
-- Verifica que agregaste la variable `GROQ_API_KEY`
-- Haz un "Manual Deploy" para reiniciar con las nuevas variables
+### El modo de voz con IA responde "API key not configured"
+- Ve a Settings → Environment y confirma que `GROQ_API_KEY` está definida, luego haz "Manual Deploy" para reiniciar con la variable nueva.
 
-### El frontend sigue dando error 405
-- Verifica que actualizaste `config.js` con la URL correcta de Render
-- Haz `git push` para subir los cambios a GitHub
-- Espera 1-2 minutos a que GitHub Pages se actualice
+### Las cânturi no cargan datos en vivo
+- `/api/cantari` cae automáticamente al snapshot estático (`lib/generated/songs.json`) si `cantaricrestine.ro` no responde — la app sigue funcionando, solo sin datos frescos. Revisa `CANTARI_TOKEN` si necesitas la fuente en vivo.
 
-### La primera petición es muy lenta
-- Es normal en el plan Free. El servicio se "despierta" automáticamente.
-- Después de la primera petición, funciona rápido.
-
-## 🎉 ¡Listo!
-
-Tu backend está desplegado en Render y tu frontend en GitHub Pages puede comunicarse con él.
+### Primera petición lenta
+- Normal en el plan Free: el servicio se "duerme" tras 15 min de inactividad y tarda ~30s en la primera respuesta.

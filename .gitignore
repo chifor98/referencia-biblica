@@ -1,6 +1,7 @@
 # Node and general
 node_modules/
 .env
+.env.local
 .DS_Store
 npm-debug.log
 
@@ -18,3 +19,17 @@ ehthumbs.db
 # Build outputs
 dist/
 build/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.vercel
+
+# Generated data (rebuilt from data/ at build time)
+public/bible-index/
+lib/generated/
+
+# Runtime warm-start cache for /api/cantari (written on first live fetch)
+data/cantari-pdc.json

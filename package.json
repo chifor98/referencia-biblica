@@ -1,15 +1,34 @@
 {
-  "name": "referencia-biblica-api",
+  "name": "referencia-biblica",
   "version": "1.0.0",
-  "description": "Backend API for Bible reference detection",
-  "main": "server.js",
+  "private": true,
+  "type": "module",
+  "description": "Referință Biblică — lectura, voz y cântări (Biserica Betel Bilbao)",
   "scripts": {
-    "start": "node server.js"
+    "dev": "next dev",
+    "build:bible-index": "node scripts/build-bible-index.mjs",
+    "build:songs-index": "node scripts/build-songs-index.mjs",
+    "build:indexes": "npm run build:bible-index && npm run build:songs-index",
+    "prebuild": "npm run build:indexes",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "dotenv": "^17.2.3"
+    "next": "16.3.5",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "swr": "^2.2.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.5",
+    "typescript": "^5"
   }
 }

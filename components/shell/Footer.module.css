@@ -1,0 +1,12 @@
+.footer {
+  grid-area: footer;
+  background: rgba(255, 248, 238, 0.9);
+  border-top: 1px solid var(--gold-border-soft);
+}
+
+.content {
+  padding: 10px 20px;
+  text-align: center;
+  color: var(--ink);
+  opacity: 0.8;
+}

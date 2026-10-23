@@ -1,0 +1,342 @@
+/* Puerto de components/screen-songs.css — rediseñado para usar el mismo
+   lenguaje visual que /biblia (ReadingScreen.module.css): fondo plano
+   var(--parchment-gradient) y texto/controles sin "tarjetas" (sin la
+   metáfora anterior de libro en capas con sombras, bordes dorados intensos
+   y gradientes anidados). Mismo layout de dos paneles que antes (aside de
+   búsqueda ~25% / diapositivas ~75%), solo que ahora todo se ve plano sobre
+   el mismo fondo, como el resto de la app. */
+
+.wrap {
+  background: var(--parchment-gradient);
+  box-sizing: border-box;
+  display: flex;
+  gap: 24px;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 24px;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Left pane: search ---------------------------------------------------- */
+
+.aside {
+  flex: 0 0 25%;
+  min-width: 240px;
+  max-width: 360px;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.searchPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.searchIcon {
+  font-size: 26px;
+  color: var(--ink-strong);
+  line-height: 1;
+  opacity: 0.8;
+}
+
+.searchTitle {
+  margin: 0 0 4px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--ink-strong);
+  font-family: var(--font-display);
+}
+
+.searchBoxWrap {
+  position: relative;
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--gold-border);
+}
+
+.input {
+  flex: 1 1 auto;
+  padding: 8px 2px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 1rem;
+  font-family: var(--font-serif);
+}
+
+.input:focus {
+  outline: none;
+}
+
+.searchBox:focus-within {
+  border-bottom-color: var(--ink-strong);
+}
+
+.suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 40;
+  background: rgba(255, 252, 244, 0.98);
+  border-radius: 8px;
+  border: 1px solid var(--gold-border-soft);
+  box-shadow: 0 6px 16px rgba(30, 22, 15, 0.08);
+  max-height: 280px;
+  overflow: auto;
+}
+
+.suggestion {
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.suggestion + .suggestion {
+  border-top: 1px solid var(--gold-border-soft);
+}
+
+.suggestion strong {
+  display: block;
+  font-family: var(--font-display);
+}
+
+.suggestion small {
+  display: block;
+  opacity: 0.65;
+  font-weight: 600;
+}
+
+.suggestionActive,
+.suggestion:hover {
+  background: rgba(0, 0, 0, 0.035);
+}
+
+.statusText {
+  font-size: 0.85rem;
+  color: var(--ink);
+  opacity: 0.7;
+  font-weight: 600;
+}
+
+.errorBox {
+  font-size: 0.9rem;
+  color: #7a1f1f;
+  background: rgba(255, 230, 230, 0.7);
+  border: 1px solid rgba(140, 40, 40, 0.12);
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.errorBox button {
+  margin-left: 8px;
+  background: none;
+  border: 1px solid rgba(140, 40, 40, 0.3);
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.list {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 4px 0 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Scroll funcional (rueda/arrastre/teclado) pero sin la barra nativa visible. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.list::-webkit-scrollbar {
+  display: none;
+}
+
+.listItem {
+  padding: 9px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 600;
+  font-family: var(--font-serif);
+  border-left: 3px solid transparent;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.listItem:hover {
+  background-color: rgba(0, 0, 0, 0.035);
+}
+
+.listItemActive {
+  background-color: rgba(203, 120, 69, 0.08);
+  border-left-color: #cb7845;
+  color: var(--ink-strong);
+  font-weight: 700;
+}
+
+.empty {
+  padding: 12px 10px;
+  color: var(--ink);
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* ---- Right pane: selected song --------------------------------------------- */
+
+.main {
+  flex: 1 1 75%;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.songHeader {
+  padding: 4px 0 16px;
+}
+
+.songTitle {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--ink-strong);
+  font-family: var(--font-display);
+}
+
+.book {
+  width: 100%;
+}
+
+.bookInner {
+  display: flex;
+  width: 100%;
+}
+
+.bookPage {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lyrics {
+  min-height: 240px;
+  max-height: 62vh;
+  overflow: auto;
+  color: var(--ink);
+  font-size: 1.05rem;
+  line-height: 1.7;
+  font-family: var(--font-display);
+}
+
+.slidesFrameWrap {
+  position: relative;
+  width: 100%;
+  height: 62vh;
+  min-height: 420px;
+}
+
+/* Pantalla completa va sobre el CONTENEDOR, no sobre el iframe: solo lo que
+   está dentro del elemento en pantalla completa se muestra mientras dura, así
+   que el botón .slidesFsBtn (hijo de este wrap) necesita que sea este el
+   elemento en pantalla completa para poder superponerse durante todo el
+   tiempo, incluido mientras está activa. */
+.slidesFrameWrap:fullscreen,
+.slidesFrameWrap:-webkit-full-screen {
+  width: 100vw;
+  height: 100vh;
+}
+
+.slidesFrame {
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--gold-border-soft);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.slidesFrameWrap:fullscreen .slidesFrame,
+.slidesFrameWrap:-webkit-full-screen .slidesFrame {
+  border: none;
+  border-radius: 0;
+}
+
+/* Encima de la esquina donde el visor de Microsoft tiene su propio botón de
+   pantalla completa (contenido de otro origen, no tocable) — al estar
+   nuestro botón ahí arriba, con fondo sólido, tapa visualmente el de ellos
+   y captura el clic antes de que les llegue. Posición aproximada/fija: si
+   Microsoft cambia el tamaño o diseño de su barra, puede dejar de alinear
+   bien. */
+.slidesFsBtn {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  z-index: 1;
+  width: 56px;
+  height: 40px;
+  border: none;
+  border-radius: 0 0 6px 0;
+  background: rgba(20, 16, 12, 0.72);
+  color: #fdf8ee;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.slidesFsBtn:hover {
+  background: rgba(20, 16, 12, 0.88);
+}
+
+.placeholder {
+  margin: 0;
+  opacity: 0.7;
+  font-style: italic;
+  color: var(--ink);
+}
+
+/* ---- Responsive ------------------------------------------------------------ */
+
+@media (max-width: 920px) {
+  .wrap {
+    flex-direction: column;
+    padding: 12px;
+  }
+
+  .aside {
+    order: 2;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .list {
+    max-height: 40vh;
+  }
+
+  .main {
+    order: 1;
+    width: 100%;
+  }
+}

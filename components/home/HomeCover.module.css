@@ -1,0 +1,376 @@
+/* ============================================
+   Home Cover Styles
+   Portat din components/home-cover.css. Clasele antigo host-based (.active)
+   au dispărut: ruta /  e mereu montată/vizibilă, deci .home-cover afișează
+   direct flex, fără toggle de vizibilitate.
+   ============================================ */
+
+.homeCover {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  /* "safe center": si el contenido es más alto que la ventana, se alinea al
+     inicio en vez de centrar-y-recortar la parte de arriba al hacer scroll
+     (bug conocido de flexbox); con fallback a `center` a secas en navegadores
+     que no soportan la palabra clave `safe`. */
+  align-items: safe center;
+  justify-content: center;
+  position: relative;
+  background: var(--parchment-gradient);
+  /* Horizontal se recorta (las letras gigantes de fondo se salen a propósito),
+     pero vertical debe poder hacer scroll: si el título + el verso ocupan más
+     alto que la ventana, antes se recortaba el texto en vez de mostrarlo entero. */
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Fondo con letras gigantes */
+.coverBackground {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.coverTextBg {
+  position: absolute;
+  font-family: var(--font-display);
+  font-size: clamp(60px, 15vw, 200px);
+  font-weight: 700;
+  color: rgba(200, 160, 110, 0.25);
+  white-space: nowrap;
+  letter-spacing: 2px;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Posiciones y opacidades diferentes para cada texto */
+.coverText1 {
+  top: -10%;
+  left: -5%;
+  opacity: 0.18;
+  transform: rotate(-15deg);
+  animation: floatSlow 20s infinite ease-in-out;
+}
+
+.coverText2 {
+  top: 15%;
+  right: -10%;
+  opacity: 0.22;
+  transform: rotate(8deg);
+  animation: floatMedium 25s infinite ease-in-out;
+}
+
+.coverText3 {
+  top: 45%;
+  left: -15%;
+  opacity: 0.16;
+  transform: rotate(-25deg) scaleX(-1);
+  animation: floatSlow 30s infinite ease-in-out reverse;
+}
+
+.coverText4 {
+  bottom: 5%;
+  left: 5%;
+  opacity: 0.2;
+  transform: rotate(12deg);
+  animation: floatMedium 22s infinite ease-in-out;
+}
+
+.coverText5 {
+  top: 40%;
+  right: 0%;
+  opacity: 0.19;
+  transform: rotate(-8deg);
+  animation: floatSlow 28s infinite ease-in-out;
+}
+
+.coverText6 {
+  bottom: 15%;
+  right: -8%;
+  opacity: 0.17;
+  transform: rotate(18deg) scaleX(-1);
+  animation: floatFast 18s infinite ease-in-out;
+}
+
+/* Animaciones de movimiento */
+@keyframes floatSlow {
+  0%,
+  100% {
+    transform: translateY(0px) translateX(0px) rotate(-15deg);
+  }
+  50% {
+    transform: translateY(20px) translateX(10px) rotate(-15deg);
+  }
+}
+
+@keyframes floatMedium {
+  0%,
+  100% {
+    transform: translateY(0px) translateX(0px) rotate(8deg);
+  }
+  50% {
+    transform: translateY(-15px) translateX(-8px) rotate(8deg);
+  }
+}
+
+@keyframes floatFast {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(18deg) scaleX(-1);
+  }
+  50% {
+    transform: translateY(-25px) rotate(18deg) scaleX(-1);
+  }
+}
+
+/* Contenido principal */
+.coverContent {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 30px;
+  padding: 40px;
+  animation: fadeInContent 0.8s ease-out;
+}
+
+@keyframes fadeInContent {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Logo — proporción más alta/esbelta (viewBox 90x150) que el badge cuadrado
+   original, para no aplastar el diseño al encajarlo en una caja 1:1. */
+.logoContainer {
+  width: 84px;
+  height: 140px;
+  margin-bottom: 20px;
+  animation: bounceGently 3s infinite ease-in-out;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.15));
+}
+
+.logoSvg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 8px rgba(91, 55, 32, 0.3));
+}
+
+@keyframes bounceGently {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+/* Título — fuente "de logo" (Great Vibes, script curvo original) */
+.coverTitle {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-logo);
+  font-size: clamp(2.8rem, 7vw, 4.6rem);
+  font-weight: 400;
+  color: var(--ink-strong);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  line-height: 1.2;
+  letter-spacing: 0.5px;
+  max-width: 640px;
+  animation: slideInTitle 0.6s ease-out 0.1s both;
+}
+
+@keyframes slideInTitle {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Sección de Versículos (variantă unică: în original era .verses-section.verses-center) */
+.versesSection {
+  width: 100%;
+  max-width: 600px;
+  position: relative;
+  animation: fadeInVerse 1s ease-out 0.5s both;
+  z-index: 10;
+}
+
+@keyframes fadeInVerse {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.verseContainer {
+  background: rgba(255, 248, 238, 0.75);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(200, 160, 110, 0.3);
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  animation: slideInVerse 0.5s ease-out 0.6s both;
+}
+
+@keyframes slideInVerse {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.verseText {
+  margin: 0 0 12px 0;
+  font-family: var(--font-serif);
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  line-height: 1.8;
+  color: var(--ink-strong);
+  font-style: italic;
+  letter-spacing: 0.3px;
+  transition: opacity 0.3s ease;
+}
+
+.verseReference {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: #8b6f47;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: opacity 0.3s ease;
+}
+
+/* Decoraciones de esquinas */
+.cornerDecoration {
+  position: absolute;
+  z-index: 5;
+}
+
+.cornerDecoration::before,
+.cornerDecoration::after {
+  content: '';
+  position: absolute;
+  background: linear-gradient(135deg, transparent 0%, var(--gold-border-soft) 100%);
+}
+
+.cornerTopLeft,
+.cornerTopRight,
+.cornerBottomLeft,
+.cornerBottomRight {
+  width: 200px;
+  height: 200px;
+}
+
+.cornerTopLeft {
+  top: 0;
+  left: 0;
+  background: radial-gradient(circle at top left, rgba(200, 160, 110, 0.15) 0%, transparent 70%);
+}
+
+.cornerTopRight {
+  top: 0;
+  right: 0;
+  background: radial-gradient(circle at top right, rgba(200, 160, 110, 0.15) 0%, transparent 70%);
+}
+
+.cornerBottomLeft {
+  bottom: 0;
+  left: 0;
+  background: radial-gradient(circle at bottom left, rgba(200, 160, 110, 0.15) 0%, transparent 70%);
+}
+
+.cornerBottomRight {
+  bottom: 0;
+  right: 0;
+  background: radial-gradient(circle at bottom right, rgba(200, 160, 110, 0.15) 0%, transparent 70%);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .coverContent {
+    gap: 25px;
+    padding: 30px 20px;
+  }
+
+  .logoContainer {
+    width: 63px;
+    height: 105px;
+  }
+
+  .coverTextBg {
+    font-size: clamp(40px, 12vw, 120px);
+  }
+
+  .versesSection {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .verseContainer {
+    padding: 16px;
+  }
+
+  .verseText {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .coverTitle {
+    font-size: clamp(1.8rem, 5vw, 2.5rem);
+  }
+
+  .cornerDecoration {
+    width: 100px;
+    height: 100px;
+  }
+
+  .versesSection {
+    width: 92%;
+    max-width: 100%;
+  }
+
+  .verseContainer {
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .verseText {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    margin-bottom: 10px;
+  }
+
+  .verseReference {
+    font-size: 11px;
+  }
+}
